@@ -1,0 +1,14 @@
+{
+    "dotnet.preferCSharpExtension": true,
+    "files.exclude": {
+        "*.meta": true,
+        "**/*.meta": true,
+        "**/*.png": true,
+        "**/*.jpg": true,
+        "**/*.jpeg": true,
+        "**/*.gif": true,
+        "**/*.bmp": true,
+        "**/*.tiff": true,
+        "**/*.ico": true
+    }
+}
