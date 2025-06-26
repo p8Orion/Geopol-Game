@@ -3,7 +3,7 @@ Shader "Custom/CountryBorder"
     Properties
     {
         _BorderTex ("Border Texture", 2D) = "white" {}
-        _CountryIDTex ("Country ID Texture", 2D) = "black" {} // Black = no countries
+        _CountryColorTex ("Country Color Texture", 2D) = "black" {} // Now stores actual colors
         _BorderWidth ("Border Width", Range(0.001, 0.1)) = 0.01
         _BorderIntensity ("Border Intensity", Range(0, 1)) = 1.0
         _BorderGlow ("Border Glow", Range(0, 1)) = 0.1
@@ -29,26 +29,20 @@ Shader "Custom/CountryBorder"
             #pragma fragment frag
             
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            
-            #define MAX_COUNTRIES 256
-
-            // Use a StructuredBuffer for the color array for better compatibility and performance
-            StructuredBuffer<float4> _CountryColors;
 
             TEXTURE2D(_BorderTex); SAMPLER(sampler_BorderTex);
-            TEXTURE2D(_CountryIDTex); SAMPLER(sampler_CountryIDTex);
+            TEXTURE2D(_CountryColorTex); SAMPLER(sampler_CountryColorTex);
             
             float4 _BorderTex_ST;
+            float4 _CountryColorTex_ST;
 
             CBUFFER_START(UnityPerMaterial)
-                float4 _CountryIDTex_ST;
                 float _BorderWidth;
                 float _BorderIntensity;
                 float _BorderGlow;
                 float _BorderPulse;
                 float _BorderPulseSpeed;
                 float _BorderBlend;
-                int _CountryCount;
             CBUFFER_END
             
             struct Attributes
@@ -91,26 +85,12 @@ Shader "Custom/CountryBorder"
                     discard;
                 }
                 
-                // Sample country ID texture
-                // Use sampler_PointClamp to ensure we get the exact pixel value without any bilinear filtering, which corrupts the ID data.
-                float4 countryIDs = SAMPLE_TEXTURE2D(_CountryIDTex, sampler_PointClamp, borderUV);
+                // Sample country color texture - much simpler!
+                float2 colorUV = IN.uv * _CountryColorTex_ST.xy + _CountryColorTex_ST.zw;
+                float4 countryColor = SAMPLE_TEXTURE2D(_CountryColorTex, sampler_CountryColorTex, colorUV);
                 
-                // The C# code now only provides our country's ID in the R channel.
-                // IMPORTANT: We must round to handle floating point inaccuracies during texture sampling.
-                int id1_lookup = (int)round(countryIDs.r * 255.0f);
-
-                // Safety check: ensure _CountryCount is valid
-                // _CountryCount includes the 'unclaimed' color at index 0.
-                int maxCountryIndex = max(1, _CountryCount) - 1;
-                
-                // Clamp the final index to be within the valid range of the color array.
-                int id1 = clamp(id1_lookup, 0, maxCountryIndex);
-
-                // Look up our color from the array
-                float4 color1 = _CountryColors[id1];
-
-                // The final color is just our country's color. No blending is needed.
-                float3 blendedColor = color1.rgb;
+                // Use the color directly - no lookup needed!
+                float3 borderColor = countryColor.rgb;
                 
                 // Add pulsing effect
                 float pulse = 1.0;
@@ -122,13 +102,13 @@ Shader "Custom/CountryBorder"
                 // Add glow effect
                 if (_BorderGlow > 0)
                 {
-                    blendedColor += _BorderGlow * blendedColor * pulse;
+                    borderColor += _BorderGlow * borderColor * pulse;
                 }
                 
-                // Apply border intensity
-                float borderAlpha = borderMask * _BorderIntensity * pulse;
+                // Apply border intensity and use the alpha from the color texture for fade effect
+                float borderAlpha = borderMask * countryColor.a * _BorderIntensity * pulse;
                 
-                return float4(blendedColor, borderAlpha);
+                return float4(borderColor, borderAlpha);
             }
             ENDHLSL
         }

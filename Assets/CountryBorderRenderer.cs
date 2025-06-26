@@ -6,33 +6,33 @@ public class CountryBorderRenderer : MonoBehaviour
 {
     [Header("Border Settings")]
     public bool enableBorders = true;
-    public float borderWidth = 0.03f;
-    public float borderIntensity = 1f;
+    public float borderWidth = 0.05f;
+    public float borderIntensity = 0.6f;
     public float borderGlow = 0f;
     [Range(0,1)]
-    public float borderOffset = 0.06f;
+    public float borderOffset = 0f;
+    [Range(0,1)]
+    public float borderFade = 1f; // How much the border fades towards the inside (0 = no fade, 1 = full fade)
     public bool enablePulse = false;
     public float pulseSpeed = 2.0f;
     
     [Header("Border Quality")]
-    public int borderTextureResolution = 1024; // Lower resolution for better performance
+    public int borderTextureResolution = 4096; // Lower resolution for better performance
     public float borderDetectionThreshold = 0.1f;
     public bool enableBorderSmoothing = true;
-    public int smoothingIterations = 1; // Reduced for better performance
+    public int smoothingIterations = 5; // Reduced for better performance
     
     [Header("References")]
     public Material borderMaterial;
     
     // Private fields
     [SerializeField] private Texture2D borderTexture;
-    [SerializeField] private Texture2D countryIDTexture;
-    [SerializeField] private Vector4[] countryColorDebugArray; // For debugging the lookup table
+    [SerializeField] private Texture2D countryColorTexture; // Now stores actual colors instead of indices
     private IcoSphere icoSphere;
     private MeshRenderer meshRenderer;
     private GameObject borderObject;
     private MeshRenderer borderRenderer;
     private bool bordersGenerated = false;
-    private ComputeBuffer countryColorBuffer;
     
     // Reference to the source of country data
     private MapEditor mapEditor;
@@ -212,26 +212,26 @@ public class CountryBorderRenderer : MonoBehaviour
         borderTexture.wrapMode = TextureWrapMode.Clamp;
         Debug.Log($"CountryBorderRenderer: Created border texture: {borderTexture != null}");
         
-        // Create country ID texture, also in linear color space.
-        countryIDTexture = new Texture2D(borderTextureResolution, borderTextureResolution, TextureFormat.RGBA32, false, true);
-        countryIDTexture.filterMode = FilterMode.Point; // Use Point filter for sharp ID lookups
-        countryIDTexture.wrapMode = TextureWrapMode.Clamp;
-        Debug.Log($"CountryBorderRenderer: Created country ID texture: {countryIDTexture != null}");
+        // Create country color texture, also in linear color space.
+        countryColorTexture = new Texture2D(borderTextureResolution, borderTextureResolution, TextureFormat.RGBA32, false, true);
+        countryColorTexture.filterMode = FilterMode.Bilinear; // Use bilinear for smooth color blending
+        countryColorTexture.wrapMode = TextureWrapMode.Clamp;
+        Debug.Log($"CountryBorderRenderer: Created country color texture: {countryColorTexture != null}");
         
         // Initialize with zeros
         Color[] pixels = new Color[borderTextureResolution * borderTextureResolution];
-        Color[] idPixels = new Color[borderTextureResolution * borderTextureResolution];
+        Color[] colorPixels = new Color[borderTextureResolution * borderTextureResolution];
         for (int i = 0; i < pixels.Length; i++)
         {
             pixels[i] = Color.clear;
-            idPixels[i] = Color.clear;
+            colorPixels[i] = Color.clear;
         }
         
         Debug.Log("CountryBorderRenderer: Initialized pixel arrays with clear colors");
         
         // Generate border data
         Debug.Log("CountryBorderRenderer: Calling GenerateBorderData...");
-        GenerateBorderData(pixels, idPixels);
+        GenerateBorderData(pixels, colorPixels);
         
         // Apply smoothing if enabled (only to the border mask)
         if (enableBorderSmoothing)
@@ -244,23 +244,19 @@ public class CountryBorderRenderer : MonoBehaviour
         Debug.Log("CountryBorderRenderer: Applying pixels to textures...");
         borderTexture.SetPixels(pixels);
         borderTexture.Apply();
-        countryIDTexture.SetPixels(idPixels);
-        countryIDTexture.Apply();
+        countryColorTexture.SetPixels(colorPixels);
+        countryColorTexture.Apply();
         
         Debug.Log("CountryBorderRenderer: Textures applied successfully");
-        
-        // Update the color array in the material
-        Debug.Log("CountryBorderRenderer: Calling UpdateCountryColorsInMaterial...");
-        UpdateCountryColorsInMaterial();
         
         // Assign textures to material
         if (borderMaterial != null)
         {
             Debug.Log("CountryBorderRenderer: Assigning textures to material...");
             borderMaterial.SetTexture("_BorderTex", borderTexture);
-            borderMaterial.SetTexture("_CountryIDTex", countryIDTexture);
+            borderMaterial.SetTexture("_CountryColorTex", countryColorTexture);
             Debug.Log($"CountryBorderRenderer: Border texture assigned: {borderMaterial.GetTexture("_BorderTex") != null}");
-            Debug.Log($"CountryBorderRenderer: Country ID texture assigned: {borderMaterial.GetTexture("_CountryIDTex") != null}");
+            Debug.Log($"CountryBorderRenderer: Country color texture assigned: {borderMaterial.GetTexture("_CountryColorTex") != null}");
         }
         else
         {
@@ -268,11 +264,11 @@ public class CountryBorderRenderer : MonoBehaviour
         }
         
         bordersGenerated = true;
-        Debug.Log("CountryBorderRenderer: Border texture and country ID texture generated successfully.");
+        Debug.Log("CountryBorderRenderer: Border texture and country color texture generated successfully.");
         Debug.Log("=== CountryBorderRenderer GenerateBorderTexture() End ===");
     }
     
-    void GenerateBorderData(Color[] pixels, Color[] idPixels)
+    void GenerateBorderData(Color[] pixels, Color[] colorPixels)
     {
         Debug.Log("=== CountryBorderRenderer GenerateBorderData() Start ===");
         
@@ -313,7 +309,7 @@ public class CountryBorderRenderer : MonoBehaviour
             Vector3[] sharedVertices = FindSharedEdgeVertices(job.OurTriangle, job.NeighborTriangle);
             if (sharedVertices.Length == 2)
             {
-                RasterizeSidedBorder(pixels, idPixels, sharedVertices[0], sharedVertices[1], job.OurTriangle);
+                RasterizeSidedBorder(pixels, colorPixels, sharedVertices[0], sharedVertices[1], job.OurTriangle);
                 rasterizedEdges++;
             }
         }
@@ -322,7 +318,7 @@ public class CountryBorderRenderer : MonoBehaviour
         Debug.Log("=== CountryBorderRenderer GenerateBorderData() End ===");
     }
 
-    void RasterizeSidedBorder(Color[] pixels, Color[] idPixels, Vector3 v1, Vector3 v2, TriangleData ourTriangle)
+    void RasterizeSidedBorder(Color[] pixels, Color[] colorPixels, Vector3 v1, Vector3 v2, TriangleData ourTriangle)
     {
         // Convert 3D positions to UV coordinates
         Vector2 uv1 = Vector3ToUV(v1);
@@ -344,11 +340,14 @@ public class CountryBorderRenderer : MonoBehaviour
         int x2 = Mathf.RoundToInt(uv2.x * borderTextureResolution);
         int y2 = Mathf.RoundToInt(uv2.y * borderTextureResolution);
 
+        // Get the actual country color
+        Color countryColor = ourTriangle.country != null ? ourTriangle.country.color : new Color(0.5f, 0.5f, 0.5f, 0.3f);
+
         // Draw line using Bresenham's algorithm
-        DrawSidedLine(pixels, idPixels, x1, y1, x2, y2, side, perpendicular, ourTriangle.country.index);
+        DrawSidedLine(pixels, colorPixels, x1, y1, x2, y2, side, perpendicular, countryColor);
     }
     
-    void DrawSidedLine(Color[] pixels, Color[] idPixels, int x1, int y1, int x2, int y2, float side, Vector2 perpendicular, int ourCountryIndex)
+    void DrawSidedLine(Color[] pixels, Color[] colorPixels, int x1, int y1, int x2, int y2, float side, Vector2 perpendicular, Color countryColor)
     {
         int dx = Mathf.Abs(x2 - x1);
         int dy = Mathf.Abs(y2 - y1);
@@ -361,7 +360,7 @@ public class CountryBorderRenderer : MonoBehaviour
         while (true)
         {
             // Set pixel with border width, but only on the correct side
-            SetSidedBorderPixel(pixels, idPixels, x, y, side, perpendicular, ourCountryIndex);
+            SetSidedBorderPixel(pixels, colorPixels, x, y, side, perpendicular, countryColor);
             
             if (x == x2 && y == y2) break;
             
@@ -379,16 +378,20 @@ public class CountryBorderRenderer : MonoBehaviour
         }
     }
 
-    void SetSidedBorderPixel(Color[] pixels, Color[] idPixels, int x, int y, float side, Vector2 perpendicular, int ourCountryIndex)
+    void SetSidedBorderPixel(Color[] pixels, Color[] colorPixels, int x, int y, float side, Vector2 perpendicular, Color countryColor)
     {
         // Draw a half-width border by only drawing on the correct side of the line
         int width = Mathf.Max(1, Mathf.RoundToInt(borderWidth * borderTextureResolution * 0.1f));
         // Calculate the desired offset in pixel units. A factor of 0.5 makes an offset of 1 mean a full half-width inset.
         float pixelOffset = borderOffset * (width * 0.5f);
 
-        for (int dx = -width; dx <= width; dx++)
+        // Clamp the border width to prevent stretching outside triangle boundaries
+        // Use a smaller width to keep borders within reasonable bounds
+        int clampedWidth = Mathf.Min(width, Mathf.RoundToInt(borderTextureResolution * 0.02f)); // Max 2% of texture size
+
+        for (int dx = -clampedWidth; dx <= clampedWidth; dx++)
         {
-            for (int dy = -width; dy <= width; dy++)
+            for (int dy = -clampedWidth; dy <= clampedWidth; dy++)
             {
                 // Determine which side of the line this offset pixel is on
                 Vector2 offsetVec = new Vector2(dx, dy);
@@ -403,16 +406,33 @@ public class CountryBorderRenderer : MonoBehaviour
 
                     if (nIndex >= 0 && nIndex < pixels.Length)
                     {
+                        // Calculate distance from the edge line (this is the key for fade effect)
+                        float distanceFromLine = Mathf.Abs(Vector2.Dot(offsetVec, perpendicular));
+                        
+                        // Calculate distance from the center of the border (for circular falloff)
+                        float distanceFromCenter = Mathf.Sqrt(dx * dx + dy * dy);
+                        
+                        // Simple circular falloff
+                        float circularFalloff = Mathf.Max(0, 1 - distanceFromCenter / clampedWidth);
+                        
+                        // Fade effect: stronger at the edge line, weaker as we move inward
+                        // distanceFromLine = 0 means we're right on the edge line (strongest)
+                        // distanceFromLine = clampedWidth means we're at the inner edge (weakest)
+                        float fadeFactor = 1.0f - (distanceFromLine / clampedWidth) * borderFade;
+                        fadeFactor = Mathf.Clamp01(fadeFactor);
+                        
+                        // Combine both effects - use the minimum to ensure we don't exceed either limit
+                        float alpha = Mathf.Min(circularFalloff, fadeFactor);
+                        
+                        // Apply borderIntensity to cap the maximum alpha
+                        alpha = alpha * borderIntensity;
+                        
                         // Update border mask
-                        float distance = Mathf.Sqrt(dx * dx + dy * dy);
-                        float alpha = Mathf.Max(0, 1 - distance / width);
                         pixels[nIndex] = Color.Lerp(pixels[nIndex], Color.white, alpha);
 
-                        // Update ID Texture
-                        // We only need to store our country's ID now.
-                        float id1_norm = (ourCountryIndex + 1) / 255.0f;
-                        Color newColor = new Color(id1_norm, 0, 0, 1); // R=OurID, G=Unused, B=Unused
-                        idPixels[nIndex] = Color.Lerp(idPixels[nIndex], newColor, alpha);
+                        // Update Color Texture - store the actual country color with fade alpha
+                        Color colorWithAlpha = new Color(countryColor.r, countryColor.g, countryColor.b, alpha);
+                        colorPixels[nIndex] = Color.Lerp(colorPixels[nIndex], colorWithAlpha, alpha);
                     }
                 }
             }
@@ -465,12 +485,13 @@ public class CountryBorderRenderer : MonoBehaviour
     /// <summary>
     /// Configure border settings programmatically
     /// </summary>
-    public void ConfigureBorders(bool enabled, float width, float intensity, float glow, bool pulse = false, float pulseSpeed = 2.0f)
+    public void ConfigureBorders(bool enabled, float width, float intensity, float glow, float fade = 0.5f, bool pulse = false, float pulseSpeed = 2.0f)
     {
         enableBorders = enabled;
         borderWidth = width;
         borderIntensity = intensity;
         borderGlow = glow;
+        borderFade = fade;
         enablePulse = pulse;
         this.pulseSpeed = pulseSpeed;
         
@@ -500,6 +521,46 @@ public class CountryBorderRenderer : MonoBehaviour
     }
     
     /// <summary>
+    /// Set the border fade effect (0 = no fade, 1 = full fade towards inside)
+    /// </summary>
+    public void SetBorderFade(float fade)
+    {
+        borderFade = Mathf.Clamp01(fade);
+        Debug.Log($"CountryBorderRenderer: Set border fade to {borderFade}");
+        if (bordersGenerated)
+        {
+            RefreshBorders();
+        }
+    }
+    
+    /// <summary>
+    /// Debug the current fade settings
+    /// </summary>
+    [ContextMenu("Debug Fade Settings")]
+    public void DebugFadeSettings()
+    {
+        Debug.Log($"CountryBorderRenderer: Current fade settings:");
+        Debug.Log($"  borderFade: {borderFade}");
+        Debug.Log($"  borderWidth: {borderWidth}");
+        Debug.Log($"  borderIntensity: {borderIntensity}");
+        Debug.Log($"  borderOffset: {borderOffset}");
+        Debug.Log($"  borderTextureResolution: {borderTextureResolution}");
+        
+        // Calculate the actual pixel width
+        int pixelWidth = Mathf.Max(1, Mathf.RoundToInt(borderWidth * borderTextureResolution * 0.1f));
+        Debug.Log($"  Calculated pixel width: {pixelWidth}");
+        
+        if (bordersGenerated)
+        {
+            Debug.Log("  Borders are generated - you should see the fade effect");
+        }
+        else
+        {
+            Debug.Log("  Borders are NOT generated - call GenerateBorderTexture() first");
+        }
+    }
+    
+    /// <summary>
     /// Force regenerate borders (useful for debugging)
     /// </summary>
     [ContextMenu("Force Regenerate Borders")]
@@ -513,7 +574,7 @@ public class CountryBorderRenderer : MonoBehaviour
         if (borderMaterial != null)
         {
             Debug.Log($"CountryBorderRenderer: Material has BorderTex: {borderMaterial.GetTexture("_BorderTex") != null}");
-            Debug.Log($"CountryBorderRenderer: Material has CountryIDTex: {borderMaterial.GetTexture("_CountryIDTex") != null}");
+            Debug.Log($"CountryBorderRenderer: Material has CountryColorTex: {borderMaterial.GetTexture("_CountryColorTex") != null}");
         }
         else
         {
@@ -556,23 +617,12 @@ public class CountryBorderRenderer : MonoBehaviour
         
         // Create test textures in linear space
         borderTexture = new Texture2D(256, 256, TextureFormat.RGBA32, false, true);
-        countryIDTexture = new Texture2D(256, 256, TextureFormat.RGBA32, false, true);
+        countryColorTexture = new Texture2D(256, 256, TextureFormat.RGBA32, false, true);
         
         Color[] borderPixels = new Color[256 * 256];
-        Color[] idPixels = new Color[256 * 256];
+        Color[] colorPixels = new Color[256 * 256];
         
-        // Use a fixed-size array to be consistent with the main function and shader
-        Vector4[] testColors = new Vector4[256];
-        testColors[0] = new Color(0.5f, 0.5f, 0.5f, 0.3f); // Index 0: Unclaimed
-        testColors[1] = Color.red;                         // Index 1: Test Country 1
-        testColors[2] = Color.blue;                        // Index 2: Test Country 2
-        
-        // Tell the shader there are only 3 valid colors to use for clamping
-        borderMaterial.SetInt("_CountryCount", 3);
-        borderMaterial.SetVectorArray("_CountryColors", testColors);
-        Debug.Log("CountryBorderRenderer: Set up material with 3 test colors in a fixed-size array.");
-
-        // Create a simple cross pattern using valid, normalized IDs
+        // Create a simple cross pattern with actual colors
         for (int y = 0; y < 256; y++)
         {
             for (int x = 0; x < 256; x++)
@@ -584,37 +634,92 @@ public class CountryBorderRenderer : MonoBehaviour
                 if (isVerticalBar)
                 {
                     borderPixels[index] = Color.white;
-                    // Border between Unclaimed (index 0) and Red (index 1)
-                    // We add 1 to the index before normalizing, so shader gets correct original index.
-                    float id1_norm = (0 + 1) / 255.0f; 
-                    float id2_norm = (1 + 1) / 255.0f;
-                    idPixels[index] = new Color(id1_norm, id2_norm, 0.5f, 1);
+                    colorPixels[index] = Color.red; // Store actual red color
                 }
                 else if (isHorizontalBar)
                 {
                     borderPixels[index] = Color.white;
-                    // Border between Red (index 1) and Blue (index 2)
-                    float id1_norm = (1 + 1) / 255.0f;
-                    float id2_norm = (2 + 1) / 255.0f;
-                    idPixels[index] = new Color(id1_norm, id2_norm, 0.5f, 1);
+                    colorPixels[index] = Color.blue; // Store actual blue color
                 }
                 else
                 {
                     borderPixels[index] = Color.clear;
-                    idPixels[index] = Color.clear;
+                    colorPixels[index] = Color.clear;
                 }
             }
         }
         
         borderTexture.SetPixels(borderPixels);
         borderTexture.Apply();
-        countryIDTexture.SetPixels(idPixels);
-        countryIDTexture.Apply();
+        countryColorTexture.SetPixels(colorPixels);
+        countryColorTexture.Apply();
         
         // Assign textures to material
         borderMaterial.SetTexture("_BorderTex", borderTexture);
-        borderMaterial.SetTexture("_CountryIDTex", countryIDTexture);
+        borderMaterial.SetTexture("_CountryColorTex", countryColorTexture);
         Debug.Log("CountryBorderRenderer: Test border textures assigned to material");
+        
+        bordersGenerated = true;
+    }
+    
+    /// <summary>
+    /// Create a test border with fade effect demonstration
+    /// </summary>
+    [ContextMenu("Create Fade Test Border")]
+    public void CreateFadeTestBorder()
+    {
+        Debug.Log("CountryBorderRenderer: Creating fade test border texture...");
+        
+        if (borderRenderer == null || borderMaterial == null)
+        {
+            Debug.LogError("CountryBorderRenderer: Border renderer or material is not initialized!");
+            return;
+        }
+
+        // Ensure we are using the primary border material for this test
+        borderRenderer.material = borderMaterial;
+        
+        // Create test textures in linear space
+        borderTexture = new Texture2D(256, 256, TextureFormat.RGBA32, false, true);
+        countryColorTexture = new Texture2D(256, 256, TextureFormat.RGBA32, false, true);
+        
+        Color[] borderPixels = new Color[256 * 256];
+        Color[] colorPixels = new Color[256 * 256];
+        
+        // Create a gradient pattern to demonstrate fade effect
+        for (int y = 0; y < 256; y++)
+        {
+            for (int x = 0; x < 256; x++)
+            {
+                int index = y * 256 + x;
+                
+                // Create a horizontal gradient from left (strong) to right (faded)
+                float gradient = (float)x / 255f;
+                float alpha = Mathf.Lerp(1f, 0.1f, gradient);
+                
+                // Only show in a band
+                if (y > 100 && y < 120)
+                {
+                    borderPixels[index] = new Color(alpha, alpha, alpha, alpha);
+                    colorPixels[index] = Color.green; // Store actual green color
+                }
+                else
+                {
+                    borderPixels[index] = Color.clear;
+                    colorPixels[index] = Color.clear;
+                }
+            }
+        }
+        
+        borderTexture.SetPixels(borderPixels);
+        borderTexture.Apply();
+        countryColorTexture.SetPixels(colorPixels);
+        countryColorTexture.Apply();
+        
+        // Assign textures to material
+        borderMaterial.SetTexture("_BorderTex", borderTexture);
+        borderMaterial.SetTexture("_CountryColorTex", countryColorTexture);
+        Debug.Log("CountryBorderRenderer: Fade test border textures assigned to material");
         
         bordersGenerated = true;
     }
@@ -711,20 +816,14 @@ public class CountryBorderRenderer : MonoBehaviour
             DestroyImmediate(borderTexture);
         }
         
-        if (countryIDTexture != null)
+        if (countryColorTexture != null)
         {
-            DestroyImmediate(countryIDTexture);
+            DestroyImmediate(countryColorTexture);
         }
         
         if (borderMaterial != null)
         {
             DestroyImmediate(borderMaterial);
-        }
-
-        if (countryColorBuffer != null)
-        {
-            countryColorBuffer.Release();
-            countryColorBuffer = null;
         }
     }
 
@@ -791,76 +890,6 @@ public class CountryBorderRenderer : MonoBehaviour
         Debug.Log("=== CountryBorderRenderer InitializeAndGenerateBorders() End ===");
     }
 
-    void UpdateCountryColorsInMaterial()
-    {
-        Debug.Log("=== CountryBorderRenderer UpdateCountryColorsInMaterial() Start ===");
-        
-        if (mapEditor == null)
-        {
-            Debug.LogError("CountryBorderRenderer: MapEditor is null in UpdateCountryColorsInMaterial!");
-            return;
-        }
-        
-        if (mapEditor.countryList == null)
-        {
-            Debug.LogError("CountryBorderRenderer: CountryList is null in UpdateCountryColorsInMaterial!");
-            return;
-        }
-        
-        if (borderMaterial == null)
-        {
-            Debug.LogError("CountryBorderRenderer: Border material is null in UpdateCountryColorsInMaterial!");
-            return;
-        }
-
-        var countries = mapEditor.countryList.countries;
-        int count = countries.Count;
-        Debug.Log($"CountryBorderRenderer: Processing {count} countries for color array");
-
-        // Use a fixed-size array matching the shader's MAX_COUNTRIES definition
-        // This avoids resizing the GPU constant buffer, which can be unreliable.
-        Vector4[] colors = new Vector4[256];
-
-        // Index 0 is for funclaimed territory
-        colors[0] = new Color(0.5f, 0.5f, 0.5f, 0.3f);
-        Debug.Log("CountryBorderRenderer: Set unclaimed color at index 0");
-
-        for (int i = 0; i < count; i++)
-        {
-            // Ensure we don't go out of bounds of our fixed-size array
-            if (i + 1 < colors.Length)
-            {
-                colors[i + 1] = countries[i].color;
-                //Debug.Log($"CountryBorderRenderer: Set country {i} color at index {i + 1}: {countries[i].color}");
-            }
-            else
-            {
-                Debug.LogWarning($"CountryBorderRenderer: Country {i} would exceed color array bounds, skipping");
-            }
-        }
-        
-        // We still tell the shader the *actual* number of valid countries for correct clamping.
-        if (countryColorBuffer == null || countryColorBuffer.count != colors.Length)
-        {
-            if (countryColorBuffer != null) countryColorBuffer.Release();
-            countryColorBuffer = new ComputeBuffer(colors.Length, sizeof(float) * 4);
-        }
-        countryColorBuffer.SetData(colors);
-        
-        borderMaterial.SetInt("_CountryCount", count + 1);
-        borderMaterial.SetBuffer("_CountryColors", countryColorBuffer);
-
-        // Copy data to the debug array so it can be viewed in the inspector
-        if (countryColorDebugArray == null || countryColorDebugArray.Length != colors.Length)
-        {
-            countryColorDebugArray = new Vector4[colors.Length];
-        }
-        System.Array.Copy(colors, countryColorDebugArray, colors.Length);
-
-        Debug.Log($"CountryBorderRenderer: Updated material with a fixed-size color array (256) containing {count + 1} active country colors.");
-        Debug.Log("=== CountryBorderRenderer UpdateCountryColorsInMaterial() End ===");
-    }
-
     /// <summary>
     /// Comprehensive diagnostic method to check the current state of the border system
     /// </summary>
@@ -889,17 +918,13 @@ public class CountryBorderRenderer : MonoBehaviour
         
         // Check textures
         Debug.Log($"Border Texture: {(borderTexture != null ? $"{borderTexture.width}x{borderTexture.height}" : "NULL")}");
-        Debug.Log($"Country ID Texture: {(countryIDTexture != null ? $"{countryIDTexture.width}x{countryIDTexture.height}" : "NULL")}");
+        Debug.Log($"Country Color Texture: {(countryColorTexture != null ? $"{countryColorTexture.width}x{countryColorTexture.height}" : "NULL")}");
         
         // Check material properties
         if (borderMaterial != null)
         {
             Debug.Log($"Material has BorderTex: {borderMaterial.GetTexture("_BorderTex") != null}");
-            Debug.Log($"Material has CountryIDTex: {borderMaterial.GetTexture("_CountryIDTex") != null}");
-            Debug.Log($"Material has CountryCount: {borderMaterial.GetInt("_CountryCount")}");
-            
-            var colors = borderMaterial.GetVectorArray("_CountryColors");
-            Debug.Log($"Material has CountryColors: {(colors != null ? colors.Length.ToString() : "NULL")} colors");
+            Debug.Log($"Material has CountryColorTex: {borderMaterial.GetTexture("_CountryColorTex") != null}");
         }
         
         // Check border object state
@@ -953,9 +978,9 @@ public class CountryBorderRenderer : MonoBehaviour
             Debug.LogError("ISSUE: Border texture is null - borders cannot be rendered");
         }
         
-        if (countryIDTexture == null)
+        if (countryColorTexture == null)
         {
-            Debug.LogError("ISSUE: Country ID texture is null - borders cannot be colored");
+            Debug.LogError("ISSUE: Country color texture is null - borders cannot be colored");
         }
         
         if (icoSphere != null && icoSphere.triangleDataList != null && icoSphere.triangleDataList.Count == 0)

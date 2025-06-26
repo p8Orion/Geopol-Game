@@ -373,8 +373,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   target: {fileID: 1519758112}
   distance: 10000
-  zoomSpeed: 15000
-  rotationSpeed: 15
+  zoomSpeed: 3000
+  rotationSpeed: 5
   pitchLimits: {x: -85, y: 85}
 --- !u!1 &375371613
 GameObject:
@@ -917,392 +917,489 @@ MonoBehaviour:
   selectedCountry:
     name: New Country
     color: {r: 0, g: 0, b: 0, a: 0}
+    index: -1
     totalArea: 0
     triangleCount: 0
   countryList:
     countries:
     - name: United States
       color: {r: 0.2, g: 0.4, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Canada
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Mexico
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Brazil
       color: {r: 0.2, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Argentina
       color: {r: 0.8, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: United Kingdom
       color: {r: 0.8, g: 0.2, b: 0.6, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: France
       color: {r: 0.2, g: 0.2, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Germany
       color: {r: 0.8, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Spain
       color: {r: 0.8, g: 0.4, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Italy
       color: {r: 0.2, g: 0.8, b: 0.6, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Russia
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: China
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Japan
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: India
       color: {r: 0.8, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Australia
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: South Africa
       color: {r: 0.8, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Egypt
       color: {r: 0.8, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Nigeria
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Turkey
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Iran
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Saudi Arabia
       color: {r: 0.2, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Pakistan
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Indonesia
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Thailand
       color: {r: 0.8, g: 0.2, b: 0.6, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Vietnam
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Philippines
       color: {r: 0.2, g: 0.2, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Malaysia
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Singapore
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: South Korea
       color: {r: 0.2, g: 0.2, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: North Korea
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Mongolia
       color: {r: 0.8, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Kazakhstan
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Ukraine
       color: {r: 0.8, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Poland
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Sweden
       color: {r: 0.2, g: 0.2, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Norway
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Finland
       color: {r: 0.2, g: 0.2, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Denmark
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Netherlands
       color: {r: 0.8, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Belgium
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Switzerland
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Austria
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Hungary
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Czech Republic
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Slovakia
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Croatia
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Serbia
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Romania
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Bulgaria
       color: {r: 0.8, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Greece
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Portugal
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Ireland
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Iceland
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Greenland
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Chile
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Peru
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Colombia
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Venezuela
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Ecuador
       color: {r: 0.8, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Bolivia
       color: {r: 0.8, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Paraguay
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Uruguay
       color: {r: 0.2, g: 0.2, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Guyana
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Suriname
       color: {r: 0.8, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: French Guiana
       color: {r: 0.2, g: 0.2, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Panama
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Costa Rica
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Nicaragua
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Honduras
       color: {r: 0.8, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: El Salvador
       color: {r: 0.2, g: 0.2, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Guatemala
       color: {r: 0.8, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Belize
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Cuba
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Jamaica
       color: {r: 0.8, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Haiti
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Dominican Republic
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Puerto Rico
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Bahamas
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Trinidad and Tobago
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Barbados
       color: {r: 0.8, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Grenada
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Saint Lucia
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Saint Vincent
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Antigua and Barbuda
       color: {r: 0.8, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Saint Kitts and Nevis
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Dominica
       color: {r: 0.8, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Montserrat
       color: {r: 0.2, g: 0.2, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Anguilla
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: British Virgin Islands
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: US Virgin Islands
       color: {r: 0.2, g: 0.2, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Cayman Islands
       color: {r: 0.8, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Turks and Caicos
       color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Bermuda
       color: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Falkland Islands
       color: {r: 0.2, g: 0.6, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: South Georgia
       color: {r: 0.8, g: 0.6, b: 0.2, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     - name: Antarctica
       color: {r: 0.8, g: 0.8, b: 0.8, a: 1}
+      index: -1
       totalArea: 0
       triangleCount: 0
     useDefaultCountries: 1
@@ -1424,7 +1521,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   triEdgeLengthKm: 50
-  sphereCircumferenceKm: 10000
+  sphereCircumferenceKm: 45000
   terrainTypes:
   - name: Unk
     material: {fileID: 2100000, guid: 09367973d3c4ae5448769b8d8e5a6124, type: 2}

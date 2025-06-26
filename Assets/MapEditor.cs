@@ -35,6 +35,9 @@ public class MapEditor : MonoBehaviour
     [Header("Country Settings")]
     public Country selectedCountry = null;
     public CountryList countryList = new CountryList();
+    [Header("Country Painting Settings")]
+    public bool onlyPaintOverUnclaimed = true; // Only paint over triangles with no country assigned
+    public float countryPreviewAlpha = 0.5f; // Alpha for country preview overlay
 
     [Header("Visual Feedback")]
     public bool showBrushPreview = true;
@@ -187,7 +190,6 @@ public class MapEditor : MonoBehaviour
     {
         if (!isEditing || currentPreviewMode != PreviewMode.Country) 
         {
-
             return;
         }
         if (!Application.isPlaying) return; // Only draw in play mode
@@ -206,6 +208,12 @@ public class MapEditor : MonoBehaviour
              
             // Draw triangle outlines for countries
             DrawCountryOutlines();
+            
+            // Draw preview overlay for selected country when painting
+            if (isPainting)
+            {
+                DrawCountryPreviewOverlay();
+            }
         }
         else
         {
@@ -225,11 +233,7 @@ public class MapEditor : MonoBehaviour
         {
             lineMaterial.SetPass(0);
             
-            int drawnTriangles = 0;
-            float lineThickness = 0.03f; // Thick lines
-            int numLines = 5; // Multiple lines for thickness
-            
-            // Draw all country border lines in one batch
+            // Draw smaller triangles inside each triangle to show country ownership
             GL.Begin(GL.LINES);
             foreach (var triangle in icoSphere.triangleDataList)
             {
@@ -248,41 +252,31 @@ public class MapEditor : MonoBehaviour
                         // If it's still white (default), initialize a random color
                         triangle.country.InitializeRandomColor();
                         countryColor = triangle.country.color;
-                        //Debug.Log($"MapEditor: Initialized random color for country '{triangle.country.name}': {countryColor}");
                     }
                     
                     GL.Color(countryColor);
-                    DrawThickLineBatch(triangle.a, triangle.b, lineThickness, numLines);
-                    DrawThickLineBatch(triangle.b, triangle.c, lineThickness, numLines);
-                    DrawThickLineBatch(triangle.c, triangle.a, lineThickness, numLines);
-                    drawnTriangles++;
+                    
+                    // Calculate center of the triangle
+                    Vector3 center = (triangle.a + triangle.b + triangle.c) / 3f;
+                    
+                    // Calculate smaller triangle vertices (50% smaller)
+                    float scale = 0.5f;
+                    Vector3 smallA = center + (triangle.a - center) * scale;
+                    Vector3 smallB = center + (triangle.b - center) * scale;
+                    Vector3 smallC = center + (triangle.c - center) * scale;
+                    
+                    // Draw the smaller triangle outline
+                    GL.Vertex(smallA);
+                    GL.Vertex(smallB);
+                    
+                    GL.Vertex(smallB);
+                    GL.Vertex(smallC);
+                    
+                    GL.Vertex(smallC);
+                    GL.Vertex(smallA);
                 }
             }
             GL.End();
-        }
-    }
-    
-    void DrawThickLineBatch(Vector3 start, Vector3 end, float thickness, int numLines)
-    {
-        Vector3 direction = (end - start).normalized;
-        Vector3 up = Vector3.up;
-        
-        // Create perpendicular vector for line width
-        Vector3 perpendicular = Vector3.Cross(direction, up).normalized;
-        if (perpendicular.magnitude < 0.1f)
-        {
-            up = Vector3.forward;
-            perpendicular = Vector3.Cross(direction, up).normalized;
-        }
-        
-        for (int i = 0; i < numLines; i++)
-        {
-            float offset = (i - (numLines - 1) * 0.5f) * thickness;
-            Vector3 offsetStart = start + perpendicular * offset;
-            Vector3 offsetEnd = end + perpendicular * offset;
-            
-            GL.Vertex(offsetStart);
-            GL.Vertex(offsetEnd);
         }
     }
     
@@ -405,10 +399,32 @@ public class MapEditor : MonoBehaviour
                 CreateNewCountry();
             }
             
+            // Country painting settings
+            GUILayout.Space(5);
+            onlyPaintOverUnclaimed = GUILayout.Toggle(onlyPaintOverUnclaimed, "Only Paint Over Unclaimed Areas");
+            
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Preview Alpha:", GUILayout.Width(100));
+            countryPreviewAlpha = GUILayout.HorizontalSlider(countryPreviewAlpha, 0.1f, 1.0f);
+            GUILayout.Label($"{countryPreviewAlpha:F2}", GUILayout.Width(40));
+            GUILayout.EndHorizontal();
+            
             // Country selection dropdown
             if (countryList.countries.Count > 0)
             {
-                GUILayout.Label($"Selected Country: {(selectedCountry != null ? selectedCountry.name : "None")}");
+                GUILayout.Label($"Selected Country: {(selectedCountry != null ? selectedCountry.name : "None (Erase)")}");
+                
+                // Add "None" option for erasing
+                GUILayout.BeginHorizontal();
+                GUI.backgroundColor = Color.gray;
+                GUILayout.Box("", GUILayout.Width(20), GUILayout.Height(20));
+                GUI.backgroundColor = Color.white;
+                
+                if (GUILayout.Button("None (Erase)", GUILayout.ExpandWidth(true)))
+                {
+                    SelectCountry(null);
+                }
+                GUILayout.EndHorizontal();
                 
                 // Show country list with selection buttons
                 for (int i = 0; i < countryList.countries.Count; i++)
@@ -1259,7 +1275,14 @@ public class MapEditor : MonoBehaviour
     public void SelectCountry(Country country)
     {
         selectedCountry = country;
-        UpdateStatus($"Selected country: {(country != null ? country.name : "None")}");
+        if (country != null)
+        {
+            UpdateStatus($"Selected country: {country.name}");
+        }
+        else
+        {
+            UpdateStatus("Selected: None (Erase mode) - Click to remove countries from triangles");
+        }
     }
 
     /// <summary>
@@ -1268,6 +1291,13 @@ public class MapEditor : MonoBehaviour
     private void PaintCountry(int triangleIndex, Color[] colors)
     {
         var triangle = icoSphere.triangleDataList[triangleIndex];
+
+        // Check if we should only paint over unclaimed triangles
+        if (onlyPaintOverUnclaimed && triangle.country != null)
+        {
+            // Skip this triangle if it already has a country assigned
+            return;
+        }
 
         // Store original country for undo
         if (!originalTerrainTypes.ContainsKey(triangleIndex))
@@ -1282,10 +1312,83 @@ public class MapEditor : MonoBehaviour
             originalTerrainTypes[triangleIndex] = originalCountryIndex;
         }
 
-        // Assign to selected country
+        // Assign to selected country (null means remove from country)
         triangle.AssignToCountry(selectedCountry);
         
         // Note: In country mode, we don't modify vertex colors since we're using the splatmap material
         // Country borders are drawn dynamically in OnRenderObject, so no need to update borders here
+    }
+
+    void DrawCountryPreviewOverlay()
+    {
+        if (lastPaintPosition == Vector3.zero) return;
+
+        // Create a simple unlit shader for drawing filled triangles
+        if (lineMaterial == null)
+        {
+            CreateLineMaterial();
+        }
+        
+        if (lineMaterial != null)
+        {
+            lineMaterial.SetPass(0);
+            
+            // Draw filled triangles for all triangles that would be affected by the brush
+            GL.Begin(GL.TRIANGLES);
+            
+            float brushRadiusSquared = brushSize * brushSize;
+            
+            foreach (var triangle in icoSphere.triangleDataList)
+            {
+                Vector3 triangleCenter = (triangle.a + triangle.b + triangle.c) / 3f;
+                float distanceSquared = Vector3.SqrMagnitude(triangleCenter - lastPaintPosition);
+                
+                if (distanceSquared <= brushRadiusSquared)
+                {
+                    // Check if we should only paint over unclaimed triangles
+                    if (onlyPaintOverUnclaimed && triangle.country != null)
+                    {
+                        continue; // Skip this triangle
+                    }
+                    
+                    // Calculate brush falloff
+                    float strength = 1f;
+                    if (useFalloff)
+                    {
+                        float distance = Mathf.Sqrt(distanceSquared);
+                        strength = 1f - Mathf.Clamp01(distance / brushSize);
+                        strength = Mathf.Pow(strength, brushFalloff * 2);
+                    }
+                    
+                    if (strength > 0.1f)
+                    {
+                        Color previewColor;
+                        
+                        if (selectedCountry != null)
+                        {
+                            // Use selected country color with configured alpha
+                            previewColor = new Color(
+                                selectedCountry.color.r,
+                                selectedCountry.color.g,
+                                selectedCountry.color.b,
+                                countryPreviewAlpha * strength
+                            );
+                        }
+                        else
+                        {
+                            // Erasing mode - show red overlay
+                            previewColor = new Color(1f, 0f, 0f, countryPreviewAlpha * strength);
+                        }
+                        
+                        GL.Color(previewColor);
+                        GL.Vertex(triangle.a);
+                        GL.Vertex(triangle.b);
+                        GL.Vertex(triangle.c);
+                    }
+                }
+            }
+            
+            GL.End();
+        }
     }
 }
