@@ -108,7 +108,14 @@ public class CountryBorderRenderer : MonoBehaviour
         
         // Create border overlay object
         Debug.Log("CountryBorderRenderer: Creating border overlay...");
-        CreateBorderOverlay();
+        if (enabled)
+        {
+            CreateBorderOverlay();
+        }
+        else
+        {
+            Debug.Log("CountryBorderRenderer: Component is disabled, skipping border overlay creation.");
+        }
         
         Debug.Log("=== CountryBorderRenderer Awake() End ===");
     }
@@ -118,9 +125,33 @@ public class CountryBorderRenderer : MonoBehaviour
         // This method is now empty. The IcoSphere will call InitializeAndGenerateBorders directly.
     }
     
+    void OnEnable()
+    {
+        // If the component is enabled and we don't have a border object, create it
+        if (borderObject == null)
+        {
+            Debug.Log("CountryBorderRenderer: Component enabled, creating border overlay.");
+            CreateBorderOverlay();
+        }
+        else
+        {
+            Debug.Log("CountryBorderRenderer: Component enabled, border overlay already exists.");
+        }
+    }
+    
+    void OnDisable()
+    {
+        // Hide the border object when the component is disabled
+        if (borderObject != null)
+        {
+            Debug.Log("CountryBorderRenderer: Component disabled, hiding border overlay.");
+            borderObject.SetActive(false);
+        }
+    }
+    
     void Update()
     {
-        if (!enableBorders || borderObject == null) return;
+        if (!enabled || !enableBorders || borderObject == null) return;
         
         // Update border material properties
         if (borderMaterial != null)
