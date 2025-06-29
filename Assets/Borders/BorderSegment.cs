@@ -24,10 +24,10 @@ public class BorderSegment
     public Vector3[] verticesB; // Curva del país B
     
     [Header("Border Properties")]
-    public float width = 2f;
+    public float width = 10f;
     public float intensity = 0.6f;
     public float fade = 1f;
-    public float offset = 0f;
+    public float offset = 1f;
     public bool isActive = true;
     
     [Header("Special Effects")]
@@ -48,6 +48,8 @@ public class BorderSegment
         this.countryB = countryB;
         this.colorA = countryA?.color ?? Color.gray;
         this.colorB = countryB?.color ?? Color.gray;
+        
+        Debug.Log($"BorderSegment: Created border between {countryA?.name ?? "Unclaimed"} ({colorA}) and {countryB?.name ?? "Unclaimed"} ({colorB})");
     }
     
     /// <summary>
@@ -111,7 +113,7 @@ public class BorderSegment
     /// <summary>
     /// Updates the mesh with smooth curves from multiple chains
     /// </summary>
-    public void UpdateMesh(List<Vector3[]> newCurvesA, List<Vector3[]> newCurvesB)
+    public void UpdateMesh(List<Vector3[]> newCurvesA, List<Vector3[]> newCurvesB, bool sameOrientation = false)
     {
         // Destroy old objects if they exist
         if (borderObjectA != null) Object.DestroyImmediate(borderObjectA);
@@ -154,12 +156,18 @@ public class BorderSegment
                             tangent = (point - smoothCurve[i - 1]).normalized;
                         else
                             tangent = (smoothCurve[i + 1] - smoothCurve[i - 1]).normalized;
+                        
                         Vector3 radial = point.normalized;
                         Vector3 perpendicular = Vector3.Cross(tangent, radial).normalized;
-                        allVerticesA.Add(point + perpendicular * offset); // Offset hacia el país A
-                        allVerticesA.Add(point + perpendicular * (offset - thickness));
-                        colorsA.Add(colorA);
-                        colorsA.Add(colorA);
+                        
+                        // Determinar la dirección correcta del offset basándose en la orientación de la curva
+                        Vector3 offsetDirection = DetermineOffsetDirection(point, tangent, perpendicular, true, sameOrientation);
+                        
+                        allVerticesA.Add(point + offsetDirection * offset); // Offset hacia el país A
+                        allVerticesA.Add(point + offsetDirection * (offset - thickness));
+                        Color currentColorA = countryA?.color ?? Color.gray;
+                        colorsA.Add(currentColorA);
+                        colorsA.Add(currentColorA);
                     }
                     int baseIndex = allVerticesA.Count - smoothCurve.Length * 2;
                     for (int i = 0; i < smoothCurve.Length - 1; i++)
@@ -180,6 +188,20 @@ public class BorderSegment
         meshA.triangles = trianglesA.ToArray();
         meshA.RecalculateNormals();
         meshFilterA.mesh = meshA;
+        
+        // Actualizar propiedades del material para el lado A
+        borderMaterialA.SetFloat("_BorderWidth", width);
+        borderMaterialA.SetFloat("_BorderIntensity", intensity);
+        borderMaterialA.SetFloat("_BorderFade", fade);
+        borderMaterialA.SetFloat("_BorderOffset", offset);
+        borderMaterialA.SetFloat("_BorderPulse", enablePulse ? 1.0f : 0.0f);
+        borderMaterialA.SetFloat("_BorderPulseSpeed", pulseSpeed);
+        borderMaterialA.SetColor("_ColorA", colorA);
+        borderMaterialA.SetColor("_ColorB", colorA);
+        borderMaterialA.SetFloat("_IsWarBorder", isWarBorder ? 1.0f : 0.0f);
+        borderMaterialA.SetFloat("_IsPeaceTreaty", isPeaceTreaty ? 1.0f : 0.0f);
+        
+        Debug.Log($"BorderSegment: Lado A - {countryA?.name ?? "Unclaimed"} usando color {colorA}");
 
         // --- Lado B ---
         borderObjectB = new GameObject($"Border_{countryB?.name ?? "Unclaimed"}_to_{countryA?.name ?? "Unclaimed"}");
@@ -216,12 +238,18 @@ public class BorderSegment
                             tangent = (point - smoothCurve[i - 1]).normalized;
                         else
                             tangent = (smoothCurve[i + 1] - smoothCurve[i - 1]).normalized;
+                        
                         Vector3 radial = point.normalized;
                         Vector3 perpendicular = Vector3.Cross(tangent, radial).normalized;
-                        allVerticesB.Add(point - perpendicular * offset); // Offset hacia el país B
-                        allVerticesB.Add(point - perpendicular * (offset - thickness));
-                        colorsB.Add(colorB);
-                        colorsB.Add(colorB);
+                        
+                        // Determinar la dirección correcta del offset basándose en la orientación de la curva
+                        Vector3 offsetDirection = DetermineOffsetDirection(point, tangent, perpendicular, false, sameOrientation);
+                        
+                        allVerticesB.Add(point + offsetDirection * offset); // Offset hacia el país B
+                        allVerticesB.Add(point + offsetDirection * (offset - thickness));
+                        Color currentColorB = countryB?.color ?? Color.gray;
+                        colorsB.Add(currentColorB);
+                        colorsB.Add(currentColorB);
                     }
                     int baseIndex = allVerticesB.Count - smoothCurve.Length * 2;
                     for (int i = 0; i < smoothCurve.Length - 1; i++)
@@ -242,6 +270,39 @@ public class BorderSegment
         meshB.triangles = trianglesB.ToArray();
         meshB.RecalculateNormals();
         meshFilterB.mesh = meshB;
+        
+        // Actualizar propiedades del material para el lado B
+        borderMaterialB.SetFloat("_BorderWidth", width);
+        borderMaterialB.SetFloat("_BorderIntensity", intensity);
+        borderMaterialB.SetFloat("_BorderFade", fade);
+        borderMaterialB.SetFloat("_BorderOffset", offset);
+        borderMaterialB.SetFloat("_BorderPulse", enablePulse ? 1.0f : 0.0f);
+        borderMaterialB.SetFloat("_BorderPulseSpeed", pulseSpeed);
+        borderMaterialB.SetColor("_ColorA", colorB);
+        borderMaterialB.SetColor("_ColorB", colorB);
+        borderMaterialB.SetFloat("_IsWarBorder", isWarBorder ? 1.0f : 0.0f);
+        borderMaterialB.SetFloat("_IsPeaceTreaty", isPeaceTreaty ? 1.0f : 0.0f);
+        
+        Debug.Log($"BorderSegment: Lado B - {countryB?.name ?? "Unclaimed"} usando color {colorB}");
+    }
+    
+    /// <summary>
+    /// Determina la dirección correcta del offset basándose en la orientación de la curva
+    /// </summary>
+    private Vector3 DetermineOffsetDirection(Vector3 point, Vector3 tangent, Vector3 perpendicular, bool isSideA, bool sameOrientation)
+    {
+        // Si ambos países tienen la misma orientación, usar offsets opuestos
+        // Si tienen orientaciones diferentes, usar el mismo offset
+        if (sameOrientation)
+        {
+            // Ambos países tienen la misma orientación, usar offsets opuestos
+            return isSideA ? perpendicular : -perpendicular;
+        }
+        else
+        {
+            // Ambos países tienen orientaciones diferentes, usar el mismo offset
+            return perpendicular;
+        }
     }
     
     /// <summary>

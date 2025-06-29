@@ -6,10 +6,10 @@ public class BorderManager : MonoBehaviour
 {
     [Header("Border Settings")]
     public Material baseBorderMaterial;
-    public float defaultWidth = 5f;
+    public float defaultWidth = 20f;
     public float defaultIntensity = 0.6f;
     public float defaultFade = 1f;
-    public float defaultOffset = 5f;
+    public float defaultOffset = 20f;
     
     [Header("Debug")]
     public bool showDebugInfo = false;
@@ -149,29 +149,33 @@ public class BorderManager : MonoBehaviour
     /// </summary>
     private void CreateBorderSegment(Country countryA, Country countryB)
     {
-        string key = GetBorderKey(countryA, countryB);
-        
+        // Ordenar los países según el criterio de GetBorderKey
+        string nameA = countryA?.name ?? "Unclaimed";
+        string nameB = countryB?.name ?? "Unclaimed";
+        Country first = countryA;
+        Country second = countryB;
+        if (string.Compare(nameA, nameB) > 0)
+        {
+            first = countryB;
+            second = countryA;
+        }
+        string key = GetBorderKey(first, second);
         if (borderSegments.ContainsKey(key))
         {
             Debug.LogWarning($"BorderManager: Border segment {key} already exists!");
             return;
         }
-        
-        var segment = new BorderSegment(countryA, countryB);
+        var segment = new BorderSegment(first, second);
         segment.width = defaultWidth;
         segment.intensity = defaultIntensity;
         segment.fade = defaultFade;
         segment.offset = defaultOffset;
-        
         // Create the GameObject and material
         segment.CreateBorderObject(borderParent, baseBorderMaterial);
-        
         // Generate the border geometry
         GenerateBorderGeometry(segment);
-        
         // Store the segment
         borderSegments[key] = segment;
-        
         if (showDebugInfo)
         {
             Debug.Log($"BorderManager: Created border segment {key}");
@@ -183,10 +187,15 @@ public class BorderManager : MonoBehaviour
     /// </summary>
     private void GenerateBorderGeometry(BorderSegment segment)
     {
-        Debug.Log($"BorderManager: Generating geometry for {segment.GetKey()}");
+        Debug.Log($"[BorderGeometry] Generando geometría para borde: {segment.countryA?.name ?? "Unclaimed"} - {segment.countryB?.name ?? "Unclaimed"}");
         var triangleDataList = icoSphere.triangleDataList;
         var sharedEdges = new List<Vector3[]>();
         var edgeSet = new HashSet<(Vector3, Vector3)>();
+        
+        // Variables para almacenar los triángulos de referencia del primer edge
+        TriangleData firstEdgeTriangleA = null;
+        TriangleData firstEdgeTriangleB = null;
+        
         // Find all shared edges between the two countries, avoiding duplicates
         for (int i = 0; i < triangleDataList.Count; i++)
         {
@@ -215,24 +224,53 @@ public class BorderManager : MonoBehaviour
                             {
                                 edgeSet.Add(edgeKey);
                                 sharedEdges.Add(new Vector3[] { a, b });
+                                
+                                // Guardar los triángulos del primer edge para determinar orientación
+                                if (sharedEdges.Count == 1)
+                                {
+                                    if (ourTriangle.country == segment.countryA)
+                                    {
+                                        firstEdgeTriangleA = ourTriangle;
+                                        firstEdgeTriangleB = neighborTriangle;
+                                    }
+                                    else
+                                    {
+                                        firstEdgeTriangleA = neighborTriangle;
+                                        firstEdgeTriangleB = ourTriangle;
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         }
-        Debug.Log($"BorderManager: Found {sharedEdges.Count} shared edges for {segment.GetKey()}");
+        
+        Debug.Log($"[BorderGeometry] Shared edges: {sharedEdges.Count} para {segment.countryA?.name ?? "Unclaimed"} - {segment.countryB?.name ?? "Unclaimed"}");
         if (sharedEdges.Count == 0)
         {
-            Debug.LogWarning($"BorderManager: No shared edges found for border {segment.GetKey()}");
+            Debug.LogWarning($"[BorderGeometry] No shared edges found for border {segment.GetKey()}");
             return;
         }
-        // Create curves for both countries (sin offset, solo las cadenas originales)
-        var curveA = CreateBorderCurves(sharedEdges, segment.countryA, 0f);
-        var curveB = CreateBorderCurves(sharedEdges, segment.countryB, 0f);
-        Debug.Log($"BorderManager: Created curves - A: {curveA.Count}, B: {curveB.Count}");
-        // Update the segment mesh
-        segment.UpdateMesh(curveA, curveB);
+        
+        // Determinar la orientación correcta usando múltiples puntos de la frontera
+        bool shouldReverseForCountryA = DetermineOrientationForCountry(sharedEdges, firstEdgeTriangleA, segment.countryA);
+        bool shouldReverseForCountryB = DetermineOrientationForCountry(sharedEdges, firstEdgeTriangleB, segment.countryB);
+        
+        Debug.Log($"[BorderGeometry] Orientación - País A ({segment.countryA?.name}): {(shouldReverseForCountryA ? "Invertir" : "Normal")}, País B ({segment.countryB?.name}): {(shouldReverseForCountryB ? "Invertir" : "Normal")}");
+        
+        // Create curves for both countries with correct orientation
+        Debug.Log($"[BorderGeometry] Creando curvaA para: {segment.countryA?.name ?? "Unclaimed"}");
+        var curveA = CreateBorderCurves(sharedEdges, shouldReverseForCountryA);
+        Debug.Log($"[BorderGeometry] Creando curvaB para: {segment.countryB?.name ?? "Unclaimed"}");
+        var curveB = CreateBorderCurves(sharedEdges, shouldReverseForCountryB);
+        Debug.Log($"[BorderGeometry] Curvas creadas - A: {curveA.Count} para {segment.countryA?.name ?? "Unclaimed"}, B: {curveB.Count} para {segment.countryB?.name ?? "Unclaimed"}");
+        
+        // Determinar si ambos países necesitan la misma orientación (handedness)
+        bool sameOrientation = shouldReverseForCountryA == shouldReverseForCountryB;
+        
+        // Update the segment mesh with handedness information
+        segment.UpdateMesh(curveA, curveB, sameOrientation);
         if (showDebugInfo)
         {
             Debug.Log($"BorderManager: Generated geometry for {segment.GetKey()} with {sharedEdges.Count} edges");
@@ -240,20 +278,54 @@ public class BorderManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Creates border curves from shared edges
+    /// Determina si la orientación de un edge apunta hacia el territorio del país
     /// </summary>
-    private List<Vector3[]> CreateBorderCurves(List<Vector3[]> sharedEdges, Country country, float offset)
+    private bool DetermineOrientationForCountry(List<Vector3[]> edges, TriangleData countryTriangle, Country country)
+    {
+        if (countryTriangle == null)
+            return false;
+            
+        Vector3 edgeMidpoint = (edges[0][0] + edges[0][1]) * 0.5f;
+        Vector3 edgeDirection = (edges[0][1] - edges[0][0]).normalized;
+        
+        // Calcular el perpendicular (tangente a la esfera)
+        Vector3 radial = edgeMidpoint.normalized;
+        Vector3 perpendicular = Vector3.Cross(edgeDirection, radial).normalized;
+        
+        // Calcular el vector desde el edge hacia el centro del triángulo
+        Vector3 triangleCenter = countryTriangle.GetCenter();
+        Vector3 directionToTriangle = (triangleCenter - edgeMidpoint).normalized;
+        
+        // Verificar si el perpendicular apunta hacia el triángulo
+        float dotProduct = Vector3.Dot(perpendicular, directionToTriangle);
+        
+        // Si el dot product es positivo, el perpendicular apunta hacia el triángulo
+        // Si es negativo, necesitamos invertir la orientación
+        return dotProduct < 0;
+    }
+    
+    /// <summary>
+    /// Creates border curves from shared edges with optional reversal
+    /// </summary>
+    private List<Vector3[]> CreateBorderCurves(List<Vector3[]> sharedEdges, bool shouldReverse)
     {
         // Ordenar los edges en cadenas continuas
         var orderedChains = OrderEdgeChains(sharedEdges);
         
-        // Crear una curva para cada cadena (sin offset, solo los puntos originales)
+        // Crear una curva para cada cadena
         var curves = new List<Vector3[]>();
         
         foreach (var chain in orderedChains)
         {
-            // Usar directamente los puntos de la cadena sin offset
-            curves.Add(chain.ToArray());
+            var chainArray = chain.ToArray();
+            
+            // Aplicar la orientación determinada
+            if (shouldReverse)
+            {
+                System.Array.Reverse(chainArray);
+            }
+            
+            curves.Add(chainArray);
         }
         
         return curves;
