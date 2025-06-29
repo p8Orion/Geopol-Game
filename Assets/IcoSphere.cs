@@ -30,9 +30,6 @@ public class IcoSphere : MonoBehaviour
     public int neighborLabelSize = 12;
     public float neighborLabelOffset = 0.33f; // How far along the line to place the label (0-1)
 
-    [Header("Border Renderer Settings")]
-    public bool useCurveBorderRenderer = true; // Use the new curve border renderer instead of the classic one
-
     public Camera idCamera;
     public LayerMask idLayer;
     public Material idMaterial;
@@ -54,9 +51,8 @@ public class IcoSphere : MonoBehaviour
 
     private KoppenTerrainMapper koppenMapper;
     
-    // Country border rendering
-    private CountryBorderRenderer borderRenderer;
-    private CountryBorderCurveRenderer curveRenderer;
+    // New border system
+    private BorderManager borderManager;
 
     Texture2D[] splatMaps = new Texture2D[3];  // 3 splat maps for 12 terrain types
 
@@ -200,56 +196,14 @@ public class IcoSphere : MonoBehaviour
             }
         }
 
-        // Initialize country border renderer
-        InitializeCountryBorderRenderer();
-        // Initialize curve border renderer
-        curveRenderer = GetComponent<CountryBorderCurveRenderer>();
-        if (curveRenderer == null)
-        {
-            curveRenderer = gameObject.AddComponent<CountryBorderCurveRenderer>();
-            Debug.Log("IcoSphere: Added CountryBorderCurveRenderer component.");
-        }
-        
-        // Enable/disable renderers based on the boolean parameter
-        if (useCurveBorderRenderer)
-        {
-            if (curveRenderer != null) 
-            {
-                curveRenderer.enabled = true;
-                Debug.Log("IcoSphere: Enabled CountryBorderCurveRenderer (curve mode).");
-            }
-            if (borderRenderer != null) 
-            {
-                borderRenderer.enabled = false;
-                Debug.Log("IcoSphere: Disabled classic CountryBorderRenderer (curve mode).");
-            }
-        }
-        else
-        {
-            if (curveRenderer != null) 
-            {
-                curveRenderer.enabled = false;
-                Debug.Log("IcoSphere: Disabled CountryBorderCurveRenderer (classic mode).");
-            }
-            if (borderRenderer != null) 
-            {
-                borderRenderer.enabled = true;
-                Debug.Log("IcoSphere: Enabled classic CountryBorderRenderer (classic mode).");
-            }
-        }
+        // Initialize new border system
+        InitializeBorderManager();
 
         // Check if save data exists and load it instead of generating new data
         if (TryLoadExistingSaveData())
         {
             Debug.Log("IcoSphere: Loaded existing save data. Triggering border generation.");
-            if (useCurveBorderRenderer)
-            {
-                curveRenderer?.RefreshBorders();
-            }
-            else
-            {
-                borderRenderer?.InitializeAndGenerateBorders();
-            }
+            borderManager?.GenerateAllBorders();
         }
         else
         {
@@ -308,16 +262,16 @@ public class IcoSphere : MonoBehaviour
     }
 
     /// <summary>
-    /// Initializes the country border renderer component
+    /// Initializes the new border manager system
     /// </summary>
-    private void InitializeCountryBorderRenderer()
+    private void InitializeBorderManager()
     {
-        // Add CountryBorderRenderer if it doesn't exist
-        borderRenderer = GetComponent<CountryBorderRenderer>();
-        if (borderRenderer == null)
+        // Add BorderManager if it doesn't exist
+        borderManager = GetComponent<BorderManager>();
+        if (borderManager == null)
         {
-            borderRenderer = gameObject.AddComponent<CountryBorderRenderer>();
-            Debug.Log("IcoSphere: Added CountryBorderRenderer component.");
+            borderManager = gameObject.AddComponent<BorderManager>();
+            Debug.Log("IcoSphere: Added BorderManager component.");
         }
     }
 
@@ -475,12 +429,6 @@ public class IcoSphere : MonoBehaviour
         {
             collider.sharedMesh = mesh;
         }
-        
-        // Notify the border renderer of the new mesh
-        if (borderRenderer != null)
-        {
-            borderRenderer.UpdateMesh(mesh);
-        }
 
         // Restore adjacency info
         CalculateAdjacency(data);
@@ -511,14 +459,7 @@ public class IcoSphere : MonoBehaviour
         
         // Data is now ready, trigger border generation for new maps.
         Debug.Log("IcoSphere: New map generated. Triggering border generation.");
-        if (useCurveBorderRenderer)
-        {
-            curveRenderer?.RefreshBorders();
-        }
-        else
-        {
-            borderRenderer?.InitializeAndGenerateBorders();
-        }
+        borderManager?.GenerateAllBorders();
     }
 
     public void SetupTerrainMaterial(Material terrainMaterial)
@@ -1325,9 +1266,9 @@ public class IcoSphere : MonoBehaviour
         }
         
         // Notify the border renderer of the new mesh
-        if (borderRenderer != null)
+        if (borderManager != null)
         {
-            borderRenderer.UpdateMesh(mesh);
+            borderManager.UpdateMesh(mesh);
         }
 
         // Restore adjacency info, which is lost during serialization
@@ -1339,21 +1280,9 @@ public class IcoSphere : MonoBehaviour
     /// </summary>
     public void UpdateCountryBorders()
     {
-        if (useCurveBorderRenderer)
+        if (borderManager != null)
         {
-            // Use curve border renderer
-            if (curveRenderer != null && curveRenderer.enabled)
-            {
-                curveRenderer.RefreshBorders();
-            }
-        }
-        else
-        {
-            // Use classic border renderer
-            if (borderRenderer != null && borderRenderer.enabled)
-            {
-                borderRenderer.RefreshBorders();
-            }
+            borderManager.GenerateAllBorders();
         }
     }
 }
