@@ -21,7 +21,7 @@ public class IDPicker : MonoBehaviour
         // Find IcoSphere if not assigned
         if (icoSphere == null)
         {
-            icoSphere = FindObjectOfType<IcoSphere>();
+            icoSphere = UnityEngine.Object.FindFirstObjectByType<IcoSphere>();
         }
 
         // Hide text initially

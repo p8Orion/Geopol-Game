@@ -140,12 +140,7 @@ public class TriangleDataSaver : MonoBehaviour
     
     void Awake()
     {
-        icoSphere = GetComponent<IcoSphere>();
-        if (icoSphere == null)
-        {
-            icoSphere = FindObjectOfType<IcoSphere>();
-        }
-        
+        icoSphere = UnityEngine.Object.FindFirstObjectByType<IcoSphere>();
         if (icoSphere == null)
         {
             Debug.LogError("TriangleDataSaver: No IcoSphere found in scene!");
@@ -365,14 +360,14 @@ public class TriangleDataSaver : MonoBehaviour
                     string countryName = saveData.countryNames[countryIndex];
                     
                     // Find or create the country in the current country list
-                    var mapEditor = FindObjectOfType<MapEditor>();
+                    var mapEditor = UnityEngine.Object.FindFirstObjectByType<MapEditor>();
                     
                     // If MapEditor not found, try again after a short delay (might be timing issue)
                     if (mapEditor == null)
                     {
                         Debug.LogWarning("TriangleDataSaver: MapEditor not found on first attempt, trying again...");
                         // Try to find it in all loaded objects
-                        mapEditor = FindObjectOfType<MapEditor>();
+                        mapEditor = UnityEngine.Object.FindFirstObjectByType<MapEditor>();
                     }
                     
                     if (mapEditor != null && mapEditor.countryList != null)

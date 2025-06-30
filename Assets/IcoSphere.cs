@@ -23,7 +23,7 @@ public class IcoSphere : MonoBehaviour
     public int blurRadius = 1; // Radius of the blur (1 = 3x3, 2 = 5x5, etc.)
 
     [Header("Debug Settings")]
-    public bool showGizmos = true;
+    public bool showGizmos = true; 
     public float gizmoScale = 0.1f;
     public Color gizmoColor = Color.yellow;
     public int mainLabelSize = 14;
@@ -281,7 +281,7 @@ public class IcoSphere : MonoBehaviour
     private bool TryLoadExistingSaveData()
     {
         // Find TriangleDataSaver component
-        var triangleDataSaver = FindObjectOfType<TriangleDataSaver>();
+        var triangleDataSaver = UnityEngine.Object.FindFirstObjectByType<TriangleDataSaver>();
         if (triangleDataSaver == null)
         {
             Debug.LogWarning("IcoSphere: No TriangleDataSaver found in scene. Cannot load save data.");

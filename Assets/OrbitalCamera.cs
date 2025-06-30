@@ -18,7 +18,7 @@ public class OrbitalCamera : MonoBehaviour
     void Start()
     {
         // Find the MapEditor component
-        mapEditor = FindObjectOfType<MapEditor>();
+        mapEditor = Object.FindFirstObjectByType<MapEditor>();
     }
 
     void LateUpdate()

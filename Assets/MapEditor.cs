@@ -92,10 +92,10 @@ public class MapEditor : MonoBehaviour
     void Awake()
     {
         // Auto-find components if not assigned
-        if (icoSphere == null) icoSphere = FindObjectOfType<IcoSphere>();
-        if (idPicker == null) idPicker = FindObjectOfType<IDPicker>();
+        if (icoSphere == null) icoSphere = UnityEngine.Object.FindFirstObjectByType<IcoSphere>();
+        if (idPicker == null) idPicker = UnityEngine.Object.FindFirstObjectByType<IDPicker>();
         if (editorCamera == null) editorCamera = Camera.main;
-        if (triangleDataSaver == null) triangleDataSaver = FindObjectOfType<TriangleDataSaver>();
+        if (triangleDataSaver == null) triangleDataSaver = UnityEngine.Object.FindFirstObjectByType<TriangleDataSaver>();
 
         // Initialize preview materials
         InitializePreviewMaterials();

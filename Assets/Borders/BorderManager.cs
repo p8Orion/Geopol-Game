@@ -32,7 +32,7 @@ public class BorderManager : MonoBehaviour
         }
         
         // Find MapEditor for country data
-        mapEditor = FindObjectOfType<MapEditor>();
+        mapEditor = UnityEngine.Object.FindFirstObjectByType<MapEditor>();
         if (mapEditor == null)
         {
             Debug.LogError("BorderManager: MapEditor not found in scene!");

@@ -30,7 +30,7 @@ public class KoppenTerrainMapper : MonoBehaviour
         {
             if (_instance == null)
             {
-                _instance = FindObjectOfType<KoppenTerrainMapper>();
+                _instance = UnityEngine.Object.FindFirstObjectByType<KoppenTerrainMapper>();
                 if (_instance == null)
                 {
                     var go = new GameObject("KoppenTerrainMapper (AutoCreated)");

@@ -57,6 +57,9 @@ public class BorderSegment
     /// </summary>
     public void CreateBorderObject(Transform parent, Material baseMaterial)
     {
+        // Store the parent reference for future use
+        borderParent = parent;
+        
         // Create GameObject
         borderObjectA = new GameObject($"Border_{countryA?.name ?? "Unclaimed"}_{countryB?.name ?? "Unclaimed"}");
         borderObjectA.transform.SetParent(parent);
@@ -121,7 +124,15 @@ public class BorderSegment
 
         // --- Lado A ---
         borderObjectA = new GameObject($"Border_{countryA?.name ?? "Unclaimed"}_to_{countryB?.name ?? "Unclaimed"}");
-        if (borderParent != null) borderObjectA.transform.SetParent(borderParent);
+        // Asegurar que se asigne al parent correcto
+        if (borderParent != null) 
+        {
+            borderObjectA.transform.SetParent(borderParent);
+        }
+        else
+        {
+            Debug.LogWarning($"BorderSegment: borderParent is null for {countryA?.name ?? "Unclaimed"}_to_{countryB?.name ?? "Unclaimed"}");
+        }
         borderObjectA.transform.localPosition = Vector3.zero;
         borderObjectA.transform.localRotation = Quaternion.identity;
         borderObjectA.transform.localScale = Vector3.one;
@@ -205,7 +216,15 @@ public class BorderSegment
 
         // --- Lado B ---
         borderObjectB = new GameObject($"Border_{countryB?.name ?? "Unclaimed"}_to_{countryA?.name ?? "Unclaimed"}");
-        if (borderParent != null) borderObjectB.transform.SetParent(borderParent);
+        // Asegurar que se asigne al parent correcto
+        if (borderParent != null) 
+        {
+            borderObjectB.transform.SetParent(borderParent);
+        }
+        else
+        {
+            Debug.LogWarning($"BorderSegment: borderParent is null for {countryB?.name ?? "Unclaimed"}_to_{countryA?.name ?? "Unclaimed"}");
+        }
         borderObjectB.transform.localPosition = Vector3.zero;
         borderObjectB.transform.localRotation = Quaternion.identity;
         borderObjectB.transform.localScale = Vector3.one;
@@ -508,6 +527,16 @@ public class BorderSegment
     public void SetParent(Transform parent)
     {
         borderParent = parent;
+        
+        // Update existing GameObjects if they exist
+        if (borderObjectA != null)
+        {
+            borderObjectA.transform.SetParent(parent);
+        }
+        if (borderObjectB != null)
+        {
+            borderObjectB.transform.SetParent(parent);
+        }
     }
 
 #if UNITY_EDITOR

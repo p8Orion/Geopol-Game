@@ -10,5 +10,6 @@
         "**/*.bmp": true,
         "**/*.tiff": true,
         "**/*.ico": true
-    }
+    },
+    "dotnet.defaultSolution": "Geopol.sln"
 }
