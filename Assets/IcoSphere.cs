@@ -47,6 +47,9 @@ public class IcoSphere : MonoBehaviour
     // Dictionary to track edges and their associated triangles
     private Dictionary<Edge, List<int>> edgeToTriangles = new();
 
+    // Public property to access edgeToTriangles
+    public Dictionary<Edge, List<int>> EdgeToTriangles => edgeToTriangles;
+
     private GameObject idSphere;  // Reference to the ID sphere GameObject
 
     private KoppenTerrainMapper koppenMapper;
@@ -82,7 +85,7 @@ public class IcoSphere : MonoBehaviour
     }
 
     // Helper class to represent edges
-    private class Edge
+    public class Edge
     {
         public Vector3 a, b;
         

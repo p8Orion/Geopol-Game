@@ -188,12 +188,10 @@ public class BorderManager : MonoBehaviour
     private void GenerateBorderGeometry(BorderSegment segment)
     {
         var triangleDataList = icoSphere.triangleDataList;
-        var sharedEdges = new List<Vector3[]>();
-        var edgeSet = new HashSet<(Vector3, Vector3)>();
+        var sharedEdges = new List<(Vector3[], TriangleData, TriangleData)>();
+        var edgeSet = new HashSet<string>(); // Cambiar a string para mejor detección de duplicados
         
-        // Variables para almacenar los triángulos de referencia del primer edge
-        TriangleData firstEdgeTriangleA = null;
-        TriangleData firstEdgeTriangleB = null;
+
         
         // Find all shared edges between the two countries, avoiding duplicates
         for (int i = 0; i < triangleDataList.Count; i++)
@@ -211,33 +209,43 @@ public class BorderManager : MonoBehaviour
                         Vector3[] sharedVertices = FindSharedEdgeVertices(ourTriangle, neighborTriangle);
                         if (sharedVertices.Length == 2)
                         {
-                            // Ordenar los vértices para evitar duplicados
-                            Vector3 a = sharedVertices[0];
-                            Vector3 b = sharedVertices[1];
-                            if (a.sqrMagnitude > b.sqrMagnitude)
+                            // MEJORA: Normalizar edge de manera más robusta
+                            Vector3 a = Quantize(sharedVertices[0], 0.1f);  // Aumentado de 1e-3f a 0.1f
+                            Vector3 b = Quantize(sharedVertices[1], 0.1f);  // Aumentado de 1e-3f a 0.1f
+                            
+                            // Crear key consistente independientemente del orden
+                            string edgeKey;
+                            if (CompareVector3(a, b) < 0)
                             {
-                                var tmp = a; a = b; b = tmp;
+                                edgeKey = $"{a.x:F3},{a.y:F3},{a.z:F3}|{b.x:F3},{b.y:F3},{b.z:F3}";
                             }
-                            var edgeKey = (a, b);
+                            else
+                            {
+                                edgeKey = $"{b.x:F3},{b.y:F3},{b.z:F3}|{a.x:F3},{a.y:F3},{a.z:F3}";
+                            }
+                            
                             if (!edgeSet.Contains(edgeKey))
                             {
                                 edgeSet.Add(edgeKey);
-                                sharedEdges.Add(new Vector3[] { a, b });
                                 
-                                // Guardar los triángulos del primer edge para determinar orientación
-                                if (sharedEdges.Count == 1)
+                                // Guardar edge con sus triángulos correspondientes
+                                TriangleData triA, triB;
+                                if (ourTriangle.country == segment.countryA)
                                 {
-                                    if (ourTriangle.country == segment.countryA)
-                                    {
-                                        firstEdgeTriangleA = ourTriangle;
-                                        firstEdgeTriangleB = neighborTriangle;
-                                    }
-                                    else
-                                    {
-                                        firstEdgeTriangleA = neighborTriangle;
-                                        firstEdgeTriangleB = ourTriangle;
-                                    }
+                                    triA = ourTriangle;
+                                    triB = neighborTriangle;
                                 }
+                                else
+                                {
+                                    triA = neighborTriangle;
+                                    triB = ourTriangle;
+                                }
+                                
+                                sharedEdges.Add((new Vector3[] { a, b }, triA, triB));
+                            }
+                            else
+                            {
+                              
                             }
                         }
                     }
@@ -245,24 +253,19 @@ public class BorderManager : MonoBehaviour
             }
         }
         
+        Debug.Log($"[BORDER] Total de edges únicos encontrados: {sharedEdges.Count}");
+        
         if (sharedEdges.Count == 0)
         {
             Debug.LogWarning($"[Border] No shared edges found for {segment.countryA?.name ?? "Unclaimed"} - {segment.countryB?.name ?? "Unclaimed"}");
             return;
         }
         
-        // Determinar la orientación del primer edge una sola vez
-        bool firstEdgeOrientationForCountryA = DetermineFirstEdgeOrientation(sharedEdges[0], firstEdgeTriangleA, segment.countryA);
-        bool firstEdgeOrientationForCountryB = DetermineFirstEdgeOrientation(sharedEdges[0], firstEdgeTriangleB, segment.countryB);
-        
-        // Determinar si ambos países necesitan la misma orientación (handedness)
-        bool sameOrientation = firstEdgeOrientationForCountryA == firstEdgeOrientationForCountryB;
-        
-        // Determinar cuál país está a la izquierda vs derecha
-        bool countryAIsLeft = !firstEdgeOrientationForCountryA; // Si no necesita invertir, está a la izquierda
-        
         // Crear las curvas con orientación por cadena
-        var curvesWithOrientation = CreateBorderCurvesWithOrientationPerChain(sharedEdges, firstEdgeTriangleA, firstEdgeTriangleB, segment.countryA, segment.countryB);
+        var curvesWithOrientation = CreateBorderCurvesWithOrientationPerChain(sharedEdges, segment.countryA, segment.countryB);
+        
+        // Store chains for debugging
+        segment.chainsWithOrientation = curvesWithOrientation;
         
         // Update the segment mesh with orientation per chain
         segment.UpdateMesh(curvesWithOrientation);
@@ -302,50 +305,65 @@ public class BorderManager : MonoBehaviour
     /// <summary>
     /// Creates border curves with orientation calculated per chain
     /// </summary>
-    private List<(Vector3[], bool)> CreateBorderCurvesWithOrientationPerChain(List<Vector3[]> sharedEdges, TriangleData firstEdgeTriangleA, TriangleData firstEdgeTriangleB, Country countryA, Country countryB)
+    private List<(Vector3[], bool, TriangleData, TriangleData)> CreateBorderCurvesWithOrientationPerChain(List<(Vector3[], TriangleData, TriangleData)> sharedEdges, Country countryA, Country countryB)
     {
-        // Ordenar los edges en cadenas continuas garantizando que el país A esté siempre a la izquierda
-        var orderedChains = OrderEdgeChainsWithOrientation(sharedEdges, firstEdgeTriangleA, firstEdgeTriangleB, countryA, countryB);
+        // Ordenar los edges en cadenas continuas
+        var orderedChains = OrderEdgeChainsWithOrientation(sharedEdges, countryA, countryB);
         
-        // Crear una curva para cada cadena - como ya están orientadas correctamente, countryA siempre está a la izquierda
-        var curvesWithOrientation = new List<(Vector3[], bool)>();
+        // Crear una curva para cada cadena con orientación real calculada
+        var curvesWithOrientation = new List<(Vector3[], bool, TriangleData, TriangleData)>();
         
         foreach (var (chain, triA, triB) in orderedChains)
         {
             if (chain.Count < 2) continue;
             
-            // Log por cada cadena individual
-            string leftCountry = countryA?.name ?? "Unclaimed";
-            string rightCountry = countryB?.name ?? "Unclaimed";
-            int leftTriangleId = triA?.id ?? -1;
-            int rightTriangleId = triB?.id ?? -1;
-            Debug.Log($"[BorderChain] Izq: {leftCountry} (tri {leftTriangleId}) - Der: {rightCountry} (tri {rightTriangleId}) - Longitud: {chain.Count}");
+            // Determinar la orientación real del primer edge de esta cadena
+            Vector3[] firstEdge = { chain[0], chain[1] };
+            bool countryAIsLeft = true; // Por defecto
             
-            // Como las cadenas ya están orientadas correctamente, countryA siempre está a la izquierda
-            curvesWithOrientation.Add((chain.ToArray(), true)); // true = countryA is left
+            if (triA != null && triB != null)
+            {
+                // Lógica geométrica correcta: determinar qué país está a la izquierda del edge
+                Vector3 centerA = triA.GetCenter();
+                Vector3 centerB = triB.GetCenter();
+                Vector3 edgeMidpoint = (firstEdge[0] + firstEdge[1]) * 0.5f;
+                Vector3 edgeDirection = (firstEdge[1] - firstEdge[0]).normalized;
+                
+                // Vector desde el punto medio del edge hacia cada país
+                Vector3 toCountryA = (centerA - edgeMidpoint).normalized;
+                Vector3 toCountryB = (centerB - edgeMidpoint).normalized;
+                
+                // Vector perpendicular al edge (tangente a la esfera)
+                Vector3 radial = edgeMidpoint.normalized;
+                Vector3 perpendicular = Vector3.Cross(edgeDirection, radial).normalized;
+                
+                // Dot products para determinar qué país está a cada lado
+                float dotA = Vector3.Dot(perpendicular, toCountryA);
+                float dotB = Vector3.Dot(perpendicular, toCountryB);
+                
+                // Verificar que los dot products tengan signos opuestos
+                if (Mathf.Sign(dotA) != Mathf.Sign(dotB))
+                {
+                    // El país con dot product positivo está a la izquierda del edge
+                    countryAIsLeft = dotA > 0;
+                }
+                else
+                {
+                    // Si ambos tienen el mismo signo, hay un problema - usar fallback
+                    countryAIsLeft = true;
+                }
+            }
+            
+
+            
+            // Usar la orientación real calculada
+            curvesWithOrientation.Add((chain.ToArray(), countryAIsLeft, triA, triB));
         }
         
         return curvesWithOrientation;
     }
     
-    /// <summary>
-    /// Creates border curves from shared edges using the first edge orientation as reference
-    /// </summary>
-    private List<Vector3[]> CreateBorderCurvesWithOrientation(List<Vector3[]> sharedEdges, TriangleData firstEdgeTriangleA, TriangleData firstEdgeTriangleB, Country countryA, Country countryB)
-    {
-        // Ordenar los edges en cadenas continuas, garantizando que el país A esté siempre a la izquierda
-        var orderedChains = OrderEdgeChainsWithOrientation(sharedEdges, firstEdgeTriangleA, firstEdgeTriangleB, countryA, countryB);
-        
-        // Crear una curva para cada cadena
-        var curves = new List<Vector3[]>();
-        
-        foreach (var (chain, triA, triB) in orderedChains)
-        {
-            curves.Add(chain.ToArray());
-        }
-        
-        return curves;
-    }
+
     
     /// <summary>
     /// Cuantiza un Vector3 a la grilla especificada
@@ -360,23 +378,25 @@ public class BorderManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Ordena los edges frontera en cadenas continuas de puntos, garantizando que el país A esté siempre a la izquierda
+    /// Ordena los edges frontera en cadenas continuas de puntos sin forzar orientación
     /// </summary>
-    private List<(List<Vector3>, TriangleData, TriangleData)> OrderEdgeChainsWithOrientation(List<Vector3[]> edges, TriangleData firstEdgeTriangleA, TriangleData firstEdgeTriangleB, Country countryA, Country countryB)
+    private List<(List<Vector3>, TriangleData, TriangleData)> OrderEdgeChainsWithOrientation(List<(Vector3[], TriangleData, TriangleData)> edges, Country countryA, Country countryB)
     {
         if (edges.Count == 0) return new List<(List<Vector3>, TriangleData, TriangleData)>();
         float tolerance = 0.05f;
-        float grid = 1e-3f;
+        float grid = 0.05f;  // Aumentado de 1e-3f a 0.1f para mayor tolerancia
         
-        // Normalizar edges (menor primero)
-        var normalizedEdges = new List<(Vector3, Vector3)>();
+        // Normalizar edges de manera consistente
+        var normalizedEdges = new List<(Vector3, Vector3, TriangleData, TriangleData)>();
         
-        foreach (var e in edges)
+        foreach (var (e, triA, triB) in edges)
         {
             var a = Quantize(e[0], grid);
             var b = Quantize(e[1], grid);
             Vector3 start, end;
-            if (a.sqrMagnitude < b.sqrMagnitude)
+            
+            // Usar la misma lógica de comparación que en GenerateBorderGeometry
+            if (CompareVector3(a, b) < 0)
             {
                 start = a; end = b;
             }
@@ -384,14 +404,14 @@ public class BorderManager : MonoBehaviour
             {
                 start = b; end = a;
             }
-            normalizedEdges.Add((start, end));
+            normalizedEdges.Add((start, end, triA, triB));
         }
         
         // Diccionario de conexiones
         var pointToEdges = new Dictionary<Vector3, List<int>>();
         for (int i = 0; i < normalizedEdges.Count; i++)
         {
-            var (a, b) = normalizedEdges[i];
+            var (a, b, triA, triB) = normalizedEdges[i];
             if (!pointToEdges.ContainsKey(a)) pointToEdges[a] = new List<int>();
             if (!pointToEdges.ContainsKey(b)) pointToEdges[b] = new List<int>();
             pointToEdges[a].Add(i);
@@ -406,7 +426,7 @@ public class BorderManager : MonoBehaviour
             if (used.Contains(i)) continue;
             
             var chain = new List<Vector3>();
-            var (start, end) = normalizedEdges[i];
+            var (start, end, triA, triB) = normalizedEdges[i];
             
             // Comenzar con orientación normal (start -> end)
             chain.Add(start);
@@ -423,7 +443,7 @@ public class BorderManager : MonoBehaviour
                 foreach (var idx in pointToEdges[front])
                 {
                     if (used.Contains(idx)) continue;
-                    var (a, b) = normalizedEdges[idx];
+                    var (a, b, _, _) = normalizedEdges[idx];
                     if ((a - front).sqrMagnitude < tolerance * tolerance)
                     {
                         chain.Add(b);
@@ -450,7 +470,7 @@ public class BorderManager : MonoBehaviour
                 foreach (var idx in pointToEdges[back])
                 {
                     if (used.Contains(idx)) continue;
-                    var (a, b) = normalizedEdges[idx];
+                    var (a, b, _, _) = normalizedEdges[idx];
                     if ((a - back).sqrMagnitude < tolerance * tolerance)
                     {
                         chain.Insert(0, b);
@@ -471,32 +491,56 @@ public class BorderManager : MonoBehaviour
             chains.Add(chain);
         }
         
-        // Intentar unir cadenas abiertas (extremos iguales)
+        // MEJORA: Intentar unir cadenas con lógica más inteligente
         bool merged = true;
-        while (merged)
+        int maxMergeIterations = 10; // Evitar loops infinitos
+        int iteration = 0;
+        
+        while (merged && iteration < maxMergeIterations)
         {
+            iteration++;
             merged = false;
+            
             for (int i = 0; i < chains.Count; i++)
             {
                 for (int j = i + 1; j < chains.Count; j++)
                 {
                     var ci = chains[i];
                     var cj = chains[j];
+                    
+                    // OPTIMIZADO: Solo probar con reversas de las otras cadenas
+                    bool foundConnection = false;
+                    
+                    // Caso 1: ci[end] == cj[start] (ambos normales)
                     if ((ci[ci.Count - 1] - cj[0]).sqrMagnitude < tolerance * tolerance)
                     {
                         ci.AddRange(cj.Skip(1));
                         chains.RemoveAt(j);
                         merged = true;
-                        break;
+                        foundConnection = true;
+               
                     }
+                    // Caso 2: ci[start] == cj[end] (ambos normales)
                     else if ((ci[0] - cj[cj.Count - 1]).sqrMagnitude < tolerance * tolerance)
                     {
                         cj.AddRange(ci.Skip(1));
                         chains[i] = cj;
                         chains.RemoveAt(j);
                         merged = true;
-                        break;
+                        foundConnection = true;
+                   
                     }
+                    // Caso 3: ci[end] == cj[end] (girar cj)
+                    else if ((ci[ci.Count - 1] - cj[cj.Count - 1]).sqrMagnitude < tolerance * tolerance)
+                    {
+                        cj.Reverse();
+                        ci.AddRange(cj.Skip(1));
+                        chains.RemoveAt(j);
+                        merged = true;
+                        foundConnection = true;
+              
+                    }
+                    // Caso 4: ci[start] == cj[start] (girar cj)
                     else if ((ci[0] - cj[0]).sqrMagnitude < tolerance * tolerance)
                     {
                         cj.Reverse();
@@ -504,24 +548,48 @@ public class BorderManager : MonoBehaviour
                         chains[i] = cj;
                         chains.RemoveAt(j);
                         merged = true;
-                        break;
+                        foundConnection = true;
+                  
                     }
-                    else if ((ci[ci.Count - 1] - cj[cj.Count - 1]).sqrMagnitude < tolerance * tolerance)
-                    {
-                        cj.Reverse();
-                        ci.AddRange(cj.Skip(1));
-                        chains.RemoveAt(j);
-                        merged = true;
-                        break;
-                    }
+                    
+                    if (foundConnection) break;
                 }
                 if (merged) break;
             }
         }
         
-        // AHORA verificar la orientación de cada cadena completa
-        var result = new List<(List<Vector3>, TriangleData, TriangleData)>();
+        if (iteration >= maxMergeIterations)
+        {
+            Debug.LogWarning($"[BORDER] Alcanzado máximo de iteraciones de merge ({maxMergeIterations})");
+        }
+        
+        // NUEVO: Eliminar cadenas que empiecen en el mismo punto
+        var uniqueChains = new List<List<Vector3>>();
+        var startingPoints = new HashSet<string>();
+        
         foreach (var chain in chains)
+        {
+            if (chain.Count >= 2)
+            {
+                string startPoint = $"{chain[0].x:F3},{chain[0].y:F3},{chain[0].z:F3}";
+                if (!startingPoints.Contains(startPoint))
+                {
+                    startingPoints.Add(startPoint);
+                    uniqueChains.Add(chain);
+                    Debug.Log($"[BORDER] Cadena única agregada, empieza en: {startPoint}");
+                }
+                else
+                {
+                    Debug.LogWarning($"[BORDER] Cadena duplicada eliminada, empieza en: {startPoint}");
+                }
+            }
+        }
+        
+        Debug.Log($"[BORDER] Cadenas después de eliminar duplicados: {uniqueChains.Count}");
+        
+        // Crear el resultado final con las cadenas y sus triángulos de referencia
+        var result = new List<(List<Vector3>, TriangleData, TriangleData)>();
+        foreach (var chain in uniqueChains)
         {
             if (chain.Count >= 2)
             {
@@ -529,18 +597,13 @@ public class BorderManager : MonoBehaviour
                 Vector3[] firstEdge = { chain[0], chain[1] };
                 var (triA, triB) = FindTrianglesForEdge(firstEdge, countryA, countryB);
                 
-                if (triA != null && triB != null)
+                // Log error si no se encuentran triángulos
+                if (triA == null || triB == null)
                 {
-                    // Verificar la orientación del primer edge de la cadena completa
-                    bool orientationForCountryA = DetermineFirstEdgeOrientation(firstEdge, triA, countryA);
-                    
-                    // Si el país A NO está a la izquierda, invertir toda la cadena completa
-                    if (orientationForCountryA)
-                    {
-                        chain.Reverse();
-                    }
+                    Debug.LogError($"[BORDER] ERROR: No se encontraron triángulos para el edge [{firstEdge[0]}, {firstEdge[1]}] entre países {countryA?.name ?? "null"} y {countryB?.name ?? "null"}. TriA: {(triA?.country?.name ?? "null")}, TriB: {(triB?.country?.name ?? "null")}");
                 }
                 
+                // Agregar la cadena sin forzar orientación - la orientación se calculará en CreateBorderCurvesWithOrientationPerChain
                 result.Add((chain, triA, triB));
             }
         }
@@ -555,7 +618,7 @@ public class BorderManager : MonoBehaviour
     private (TriangleData, TriangleData) FindTrianglesForEdge(Vector3[] edge, Country countryA, Country countryB)
     {
         var triangleDataList = icoSphere.triangleDataList;
-        float tolerance = 0.01f;
+        float tolerance = 0.15f; // Aumentado para coincidir con la cuantización de OrderEdgeChainsWithOrientation
         
         for (int i = 0; i < triangleDataList.Count; i++)
         {
@@ -593,6 +656,8 @@ public class BorderManager : MonoBehaviour
             }
         }
         
+        Debug.LogWarning($"[BORDER] No se encontraron triángulos para el edge entre {countryA?.name ?? "null"} y {countryB?.name ?? "null"}");
+        
         return (null, null);
     }
     
@@ -628,7 +693,7 @@ public class BorderManager : MonoBehaviour
         {
             for (int j = 0; j < 3; j++)
             {
-                if (Vector3.Distance(vertices1[i], vertices2[j]) < 0.01f)
+                if (Vector3.Distance(vertices1[i], vertices2[j]) < 0.15f) // Aumentado para consistencia
                 {
                     shared.Add(vertices1[i]);
                 }
@@ -798,6 +863,16 @@ public class BorderManager : MonoBehaviour
         
         // Regenerate all borders with the new mesh data
         GenerateAllBorders();
+    }
+    
+    /// <summary>
+    /// Compara dos Vector3 de manera consistente
+    /// </summary>
+    private static int CompareVector3(Vector3 a, Vector3 b)
+    {
+        if (a.x != b.x) return a.x.CompareTo(b.x);
+        if (a.y != b.y) return a.y.CompareTo(b.y);
+        return a.z.CompareTo(b.z);
     }
     
     void OnDestroy()

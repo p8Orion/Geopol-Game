@@ -40,6 +40,9 @@ public class BorderSegment
     public Color colorA;
     public Color colorB;
     
+    [Header("Debug - Chain Data")]
+    public List<(Vector3[], bool, TriangleData, TriangleData)> chainsWithOrientation = new List<(Vector3[], bool, TriangleData, TriangleData)>();
+    
     private Transform borderParent;
 
     public BorderSegment(Country countryA, Country countryB)
@@ -114,7 +117,7 @@ public class BorderSegment
     /// <summary>
     /// Updates the mesh with smooth curves from multiple chains, each with its own orientation
     /// </summary>
-    public void UpdateMesh(List<(Vector3[], bool)> curvesWithOrientation)
+    public void UpdateMesh(List<(Vector3[], bool, TriangleData, TriangleData)> curvesWithOrientation)
     {
         // Destroy old objects if they exist
         if (borderObjectA != null) Object.DestroyImmediate(borderObjectA);
@@ -148,7 +151,7 @@ public class BorderSegment
         float thickness = width;
         
         // Procesar cada cadena con su orientación específica
-        foreach (var (chain, countryAIsLeft) in curvesWithOrientation)
+        foreach (var (chain, countryAIsLeft, triA, triB) in curvesWithOrientation)
         {
             if (chain != null && chain.Length > 1)
             {
@@ -236,7 +239,7 @@ public class BorderSegment
         var trianglesB = new List<int>();
         
         // Procesar cada cadena con su orientación específica (opuesta al país A)
-        foreach (var (chain, countryAIsLeft) in curvesWithOrientation)
+        foreach (var (chain, countryAIsLeft, triA, triB) in curvesWithOrientation)
         {
             if (chain != null && chain.Length > 1)
             {
