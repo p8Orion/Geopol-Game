@@ -42,7 +42,6 @@ public class MapEditor : MonoBehaviour
     [Header("Visual Feedback")]
     public bool showBrushPreview = true;
     public Color brushPreviewColor = new Color(1, 1, 0, 0.3f);
-    public bool showTriangleIDs = false; // New toggle for showing triangle IDs
     
     [Header("Editor State")]
     public bool useNewInputSystem = true;
@@ -152,12 +151,6 @@ public class MapEditor : MonoBehaviour
 
         // Draw the main editor window
         editorWindowRect = GUILayout.Window(0, editorWindowRect, DrawEditorWindow, "Map Editor");
-        
-        // Draw triangle ID labels if enabled
-        if (showTriangleIDs && icoSphere != null && icoSphere.triangleDataList != null)
-        {
-            DrawTriangleIDLabels();
-        }
     }
 
     void OnDrawGizmos()
@@ -499,7 +492,6 @@ public class MapEditor : MonoBehaviour
         // --- Visual Feedback Section ---
         GUILayout.Label("Visual Feedback", EditorStyles.boldLabel);
         showBrushPreview = GUILayout.Toggle(showBrushPreview, "Show Brush Preview");
-        showTriangleIDs = GUILayout.Toggle(showTriangleIDs, "Show Triangle IDs");
         
         GUILayout.Space(10);
 
@@ -1403,70 +1395,6 @@ public class MapEditor : MonoBehaviour
             }
             
             GL.End();
-        }
-    }
-
-    void DrawTriangleIDLabels()
-    {
-        if (icoSphere == null || icoSphere.triangleDataList == null) return;
-        
-        int drawnCount = 0;
-        int visibleCount = 0;
-        const int maxLabels = 1000; // Limit to prevent screen clutter
-        
-        // Get the triangle index from the triangle data list
-        for (int i = 0; i < icoSphere.triangleDataList.Count; i++)
-        {
-            var triangle = icoSphere.triangleDataList[i];
-            Vector3 center = triangle.GetCenter();
-            
-            // Convert world position to viewport position (0-1 range)
-            Vector3 viewportPos = editorCamera.WorldToViewportPoint(center);
-            
-            // Only draw if the triangle is in front of the camera and within viewport bounds
-            if (viewportPos.z > 0 && 
-                viewportPos.x >= 0 && viewportPos.x <= 1 && 
-                viewportPos.y >= 0 && viewportPos.y <= 1)
-            {
-                visibleCount++;
-                
-                // Only draw if we haven't reached the limit
-                if (drawnCount < maxLabels)
-                {
-                    // Convert viewport position to screen position
-                    Vector3 screenPos = new Vector3(
-                        viewportPos.x * Screen.width,
-                        (1 - viewportPos.y) * Screen.height, // Invert Y for GUI
-                        0
-                    );
-                    
-                    // Create small label style
-                    GUIStyle labelStyle = new GUIStyle();
-                    labelStyle.fontSize = 6;
-                    labelStyle.normal.textColor = Color.white;
-                    labelStyle.alignment = TextAnchor.MiddleCenter;
-                    
-                    // Draw the triangle ID
-                    GUI.Label(new Rect(screenPos.x - 10, screenPos.y - 5, 20, 10), i.ToString(), labelStyle);
-                    
-                    drawnCount++;
-                }
-            }
-        }
-        
-        // Show info about triangle ID display
-        GUIStyle infoStyle = new GUIStyle();
-        infoStyle.fontSize = 12;
-        infoStyle.normal.textColor = Color.yellow;
-        infoStyle.alignment = TextAnchor.UpperLeft;
-        
-        if (visibleCount > maxLabels)
-        {
-            GUI.Label(new Rect(10, 10, 400, 20), $"Showing {drawnCount}/{visibleCount} triangle IDs (limit: {maxLabels})", infoStyle);
-        }
-        else
-        {
-            GUI.Label(new Rect(10, 10, 300, 20), $"Showing {drawnCount} triangle IDs", infoStyle);
         }
     }
 }

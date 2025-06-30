@@ -304,7 +304,8 @@ public class BorderSegment
     /// </summary>
     private Vector3 DetermineOffsetDirection(Vector3 point, Vector3 tangent, Vector3 perpendicular, bool countryAIsLeft)
     {
-        // SIEMPRE usar offsets opuestos para los dos países
+        // Lógica simple: si countryAIsLeft es true, usar perpendicular positivo
+        // Si es false, usar perpendicular negativo
         return countryAIsLeft ? perpendicular : -perpendicular;
     }
     

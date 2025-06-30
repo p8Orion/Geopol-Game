@@ -368,9 +368,8 @@ public class BorderManager : MonoBehaviour
         float tolerance = 0.05f;
         float grid = 1e-3f;
         
-        // Normalizar edges (menor primero) y guardar sus triángulos de referencia
-        var normalizedEdges = new List<(Vector3, Vector3, TriangleData, TriangleData)>();
-        var triangleDataList = icoSphere.triangleDataList;
+        // Normalizar edges (menor primero)
+        var normalizedEdges = new List<(Vector3, Vector3)>();
         
         foreach (var e in edges)
         {
@@ -385,17 +384,14 @@ public class BorderManager : MonoBehaviour
             {
                 start = b; end = a;
             }
-            
-            // Buscar los triángulos que comparten este edge
-            var (triA, triB) = FindTrianglesForEdge(new Vector3[] { start, end }, countryA, countryB);
-            normalizedEdges.Add((start, end, triA, triB));
+            normalizedEdges.Add((start, end));
         }
         
         // Diccionario de conexiones
         var pointToEdges = new Dictionary<Vector3, List<int>>();
         for (int i = 0; i < normalizedEdges.Count; i++)
         {
-            var (a, b, _, _) = normalizedEdges[i];
+            var (a, b) = normalizedEdges[i];
             if (!pointToEdges.ContainsKey(a)) pointToEdges[a] = new List<int>();
             if (!pointToEdges.ContainsKey(b)) pointToEdges[b] = new List<int>();
             pointToEdges[a].Add(i);
@@ -403,14 +399,14 @@ public class BorderManager : MonoBehaviour
         }
         
         var used = new HashSet<int>();
-        var chains = new List<(List<Vector3>, TriangleData, TriangleData)>();
+        var chains = new List<List<Vector3>>();
         
         for (int i = 0; i < normalizedEdges.Count; i++)
         {
             if (used.Contains(i)) continue;
             
             var chain = new List<Vector3>();
-            var (start, end, triA, triB) = normalizedEdges[i];
+            var (start, end) = normalizedEdges[i];
             
             // Comenzar con orientación normal (start -> end)
             chain.Add(start);
@@ -427,7 +423,7 @@ public class BorderManager : MonoBehaviour
                 foreach (var idx in pointToEdges[front])
                 {
                     if (used.Contains(idx)) continue;
-                    var (a, b, _, _) = normalizedEdges[idx];
+                    var (a, b) = normalizedEdges[idx];
                     if ((a - front).sqrMagnitude < tolerance * tolerance)
                     {
                         chain.Add(b);
@@ -454,7 +450,7 @@ public class BorderManager : MonoBehaviour
                 foreach (var idx in pointToEdges[back])
                 {
                     if (used.Contains(idx)) continue;
-                    var (a, b, _, _) = normalizedEdges[idx];
+                    var (a, b) = normalizedEdges[idx];
                     if ((a - back).sqrMagnitude < tolerance * tolerance)
                     {
                         chain.Insert(0, b);
@@ -472,20 +468,7 @@ public class BorderManager : MonoBehaviour
                 }
             }
             
-            // Verificar si el país A está a la izquierda de esta cadena usando los triángulos guardados
-            if (chain.Count >= 2 && triA != null && triB != null)
-            {
-                Vector3[] firstEdge = { chain[0], chain[1] };
-                bool orientationForCountryA = DetermineFirstEdgeOrientation(firstEdge, triA, countryA);
-                
-                // Si el país A NO está a la izquierda, invertir la cadena
-                if (orientationForCountryA)
-                {
-                    chain.Reverse();
-                }
-            }
-            
-            chains.Add((chain, triA, triB));
+            chains.Add(chain);
         }
         
         // Intentar unir cadenas abiertas (extremos iguales)
@@ -497,8 +480,8 @@ public class BorderManager : MonoBehaviour
             {
                 for (int j = i + 1; j < chains.Count; j++)
                 {
-                    var (ci, triAi, triBi) = chains[i];
-                    var (cj, triAj, triBj) = chains[j];
+                    var ci = chains[i];
+                    var cj = chains[j];
                     if ((ci[ci.Count - 1] - cj[0]).sqrMagnitude < tolerance * tolerance)
                     {
                         ci.AddRange(cj.Skip(1));
@@ -509,7 +492,7 @@ public class BorderManager : MonoBehaviour
                     else if ((ci[0] - cj[cj.Count - 1]).sqrMagnitude < tolerance * tolerance)
                     {
                         cj.AddRange(ci.Skip(1));
-                        chains[i] = (cj, triAj, triBj);
+                        chains[i] = cj;
                         chains.RemoveAt(j);
                         merged = true;
                         break;
@@ -518,7 +501,7 @@ public class BorderManager : MonoBehaviour
                     {
                         cj.Reverse();
                         cj.AddRange(ci.Skip(1));
-                        chains[i] = (cj, triAj, triBj);
+                        chains[i] = cj;
                         chains.RemoveAt(j);
                         merged = true;
                         break;
@@ -536,8 +519,34 @@ public class BorderManager : MonoBehaviour
             }
         }
         
-        Debug.Log($"[BORDER] Cadenas generadas para esta frontera: {chains.Count} (longitudes: {string.Join(", ", chains.ConvertAll(c => c.Item1.Count))})");
-        return chains;
+        // AHORA verificar la orientación de cada cadena completa
+        var result = new List<(List<Vector3>, TriangleData, TriangleData)>();
+        foreach (var chain in chains)
+        {
+            if (chain.Count >= 2)
+            {
+                // Buscar los triángulos de referencia para el primer edge de la cadena completa
+                Vector3[] firstEdge = { chain[0], chain[1] };
+                var (triA, triB) = FindTrianglesForEdge(firstEdge, countryA, countryB);
+                
+                if (triA != null && triB != null)
+                {
+                    // Verificar la orientación del primer edge de la cadena completa
+                    bool orientationForCountryA = DetermineFirstEdgeOrientation(firstEdge, triA, countryA);
+                    
+                    // Si el país A NO está a la izquierda, invertir toda la cadena completa
+                    if (orientationForCountryA)
+                    {
+                        chain.Reverse();
+                    }
+                }
+                
+                result.Add((chain, triA, triB));
+            }
+        }
+        
+        Debug.Log($"[BORDER] Cadenas generadas para esta frontera: {result.Count} (longitudes: {string.Join(", ", result.ConvertAll(c => c.Item1.Count))})");
+        return result;
     }
     
     /// <summary>
