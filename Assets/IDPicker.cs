@@ -106,6 +106,7 @@ public class IDPicker : MonoBehaviour
                     //Debug.Log($"[IDPicker] Triangle {id} center lat/lon: {lat}, {lon} => Terrain: {terrain}");
                 }
                 infoText.text = $"{terrainInfo}\n{triangleData}";
+                infoText.color = Color.white;
                 infoText.gameObject.SetActive(true);
                 // Position text near mouse
                 infoText.transform.position = mousePos + new Vector2(20, 20);

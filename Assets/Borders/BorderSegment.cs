@@ -48,8 +48,6 @@ public class BorderSegment
         this.countryB = countryB;
         this.colorA = countryA?.color ?? Color.gray;
         this.colorB = countryB?.color ?? Color.gray;
-        
-        Debug.Log($"BorderSegment: Created border between {countryA?.name ?? "Unclaimed"} ({colorA}) and {countryB?.name ?? "Unclaimed"} ({colorB})");
     }
     
     /// <summary>
@@ -114,9 +112,9 @@ public class BorderSegment
     }
     
     /// <summary>
-    /// Updates the mesh with smooth curves from multiple chains
+    /// Updates the mesh with smooth curves from multiple chains, each with its own orientation
     /// </summary>
-    public void UpdateMesh(List<Vector3[]> newCurvesA, List<Vector3[]> newCurvesB, bool sameOrientation = false)
+    public void UpdateMesh(List<(Vector3[], bool)> curvesWithOrientation)
     {
         // Destroy old objects if they exist
         if (borderObjectA != null) Object.DestroyImmediate(borderObjectA);
@@ -148,49 +146,47 @@ public class BorderSegment
         var colorsA = new List<Color>();
         var trianglesA = new List<int>();
         float thickness = width;
-        var baseChainsA = newCurvesA;
-        if (baseChainsA != null)
+        
+        // Procesar cada cadena con su orientación específica
+        foreach (var (chain, countryAIsLeft) in curvesWithOrientation)
         {
-            foreach (var chain in baseChainsA)
+            if (chain != null && chain.Length > 1)
             {
-                if (chain != null && chain.Length > 1)
+                int segmentsPerChain = Mathf.Max(5, Mathf.Min(20, chain.Length * 2));
+                var smoothCurve = GenerateSmoothCurve(chain, segmentsPerChain);
+                for (int i = 0; i < smoothCurve.Length; i++)
                 {
-                    int segmentsPerChain = Mathf.Max(5, Mathf.Min(20, chain.Length * 2));
-                    var smoothCurve = GenerateSmoothCurve(chain, segmentsPerChain);
-                    for (int i = 0; i < smoothCurve.Length; i++)
-                    {
-                        Vector3 point = smoothCurve[i];
-                        Vector3 tangent;
-                        if (i == 0)
-                            tangent = (smoothCurve[i + 1] - point).normalized;
-                        else if (i == smoothCurve.Length - 1)
-                            tangent = (point - smoothCurve[i - 1]).normalized;
-                        else
-                            tangent = (smoothCurve[i + 1] - smoothCurve[i - 1]).normalized;
-                        
-                        Vector3 radial = point.normalized;
-                        Vector3 perpendicular = Vector3.Cross(tangent, radial).normalized;
-                        
-                        // Determinar la dirección correcta del offset basándose en la orientación de la curva
-                        Vector3 offsetDirection = DetermineOffsetDirection(point, tangent, perpendicular, true, sameOrientation);
-                        
-                        allVerticesA.Add(point + offsetDirection * offset); // Offset hacia el país A
-                        allVerticesA.Add(point + offsetDirection * (offset - thickness));
-                        Color currentColorA = countryA?.color ?? Color.gray;
-                        colorsA.Add(currentColorA);
-                        colorsA.Add(currentColorA);
-                    }
-                    int baseIndex = allVerticesA.Count - smoothCurve.Length * 2;
-                    for (int i = 0; i < smoothCurve.Length - 1; i++)
-                    {
-                        int idx = baseIndex + i * 2;
-                        trianglesA.Add(idx);
-                        trianglesA.Add(idx + 2);
-                        trianglesA.Add(idx + 1);
-                        trianglesA.Add(idx + 2);
-                        trianglesA.Add(idx + 3);
-                        trianglesA.Add(idx + 1);
-                    }
+                    Vector3 point = smoothCurve[i];
+                    Vector3 tangent;
+                    if (i == 0)
+                        tangent = (smoothCurve[i + 1] - point).normalized;
+                    else if (i == smoothCurve.Length - 1)
+                        tangent = (point - smoothCurve[i - 1]).normalized;
+                    else
+                        tangent = (smoothCurve[i + 1] - smoothCurve[i - 1]).normalized;
+                    
+                    Vector3 radial = point.normalized;
+                    Vector3 perpendicular = Vector3.Cross(tangent, radial).normalized;
+                    
+                    // Determinar la dirección del offset basándose en la orientación específica de esta cadena
+                    Vector3 offsetDirection = DetermineOffsetDirection(point, tangent, perpendicular, countryAIsLeft);
+                    
+                    allVerticesA.Add(point + offsetDirection * offset); // Offset hacia el país A
+                    allVerticesA.Add(point + offsetDirection * (offset - thickness));
+                    Color currentColorA = countryA?.color ?? Color.gray;
+                    colorsA.Add(currentColorA);
+                    colorsA.Add(currentColorA);
+                }
+                int baseIndex = allVerticesA.Count - smoothCurve.Length * 2;
+                for (int i = 0; i < smoothCurve.Length - 1; i++)
+                {
+                    int idx = baseIndex + i * 2;
+                    trianglesA.Add(idx);
+                    trianglesA.Add(idx + 2);
+                    trianglesA.Add(idx + 1);
+                    trianglesA.Add(idx + 2);
+                    trianglesA.Add(idx + 3);
+                    trianglesA.Add(idx + 1);
                 }
             }
         }
@@ -238,49 +234,47 @@ public class BorderSegment
         var allVerticesB = new List<Vector3>();
         var colorsB = new List<Color>();
         var trianglesB = new List<int>();
-        var baseChainsB = newCurvesB;
-        if (baseChainsB != null)
+        
+        // Procesar cada cadena con su orientación específica (opuesta al país A)
+        foreach (var (chain, countryAIsLeft) in curvesWithOrientation)
         {
-            foreach (var chain in baseChainsB)
+            if (chain != null && chain.Length > 1)
             {
-                if (chain != null && chain.Length > 1)
+                int segmentsPerChain = Mathf.Max(5, Mathf.Min(20, chain.Length * 2));
+                var smoothCurve = GenerateSmoothCurve(chain, segmentsPerChain);
+                for (int i = 0; i < smoothCurve.Length; i++)
                 {
-                    int segmentsPerChain = Mathf.Max(5, Mathf.Min(20, chain.Length * 2));
-                    var smoothCurve = GenerateSmoothCurve(chain, segmentsPerChain);
-                    for (int i = 0; i < smoothCurve.Length; i++)
-                    {
-                        Vector3 point = smoothCurve[i];
-                        Vector3 tangent;
-                        if (i == 0)
-                            tangent = (smoothCurve[i + 1] - point).normalized;
-                        else if (i == smoothCurve.Length - 1)
-                            tangent = (point - smoothCurve[i - 1]).normalized;
-                        else
-                            tangent = (smoothCurve[i + 1] - smoothCurve[i - 1]).normalized;
-                        
-                        Vector3 radial = point.normalized;
-                        Vector3 perpendicular = Vector3.Cross(tangent, radial).normalized;
-                        
-                        // Determinar la dirección correcta del offset basándose en la orientación de la curva
-                        Vector3 offsetDirection = DetermineOffsetDirection(point, tangent, perpendicular, false, sameOrientation);
-                        
-                        allVerticesB.Add(point + offsetDirection * offset); // Offset hacia el país B
-                        allVerticesB.Add(point + offsetDirection * (offset - thickness));
-                        Color currentColorB = countryB?.color ?? Color.gray;
-                        colorsB.Add(currentColorB);
-                        colorsB.Add(currentColorB);
-                    }
-                    int baseIndex = allVerticesB.Count - smoothCurve.Length * 2;
-                    for (int i = 0; i < smoothCurve.Length - 1; i++)
-                    {
-                        int idx = baseIndex + i * 2;
-                        trianglesB.Add(idx);
-                        trianglesB.Add(idx + 2);
-                        trianglesB.Add(idx + 1);
-                        trianglesB.Add(idx + 2);
-                        trianglesB.Add(idx + 3);
-                        trianglesB.Add(idx + 1);
-                    }
+                    Vector3 point = smoothCurve[i];
+                    Vector3 tangent;
+                    if (i == 0)
+                        tangent = (smoothCurve[i + 1] - point).normalized;
+                    else if (i == smoothCurve.Length - 1)
+                        tangent = (point - smoothCurve[i - 1]).normalized;
+                    else
+                        tangent = (smoothCurve[i + 1] - smoothCurve[i - 1]).normalized;
+                    
+                    Vector3 radial = point.normalized;
+                    Vector3 perpendicular = Vector3.Cross(tangent, radial).normalized;
+                    
+                    // Determinar la dirección del offset basándose en la orientación específica de esta cadena (opuesta al país A)
+                    Vector3 offsetDirection = DetermineOffsetDirection(point, tangent, perpendicular, !countryAIsLeft);
+                    
+                    allVerticesB.Add(point + offsetDirection * offset); // Offset hacia el país B
+                    allVerticesB.Add(point + offsetDirection * (offset - thickness));
+                    Color currentColorB = countryB?.color ?? Color.gray;
+                    colorsB.Add(currentColorB);
+                    colorsB.Add(currentColorB);
+                }
+                int baseIndex = allVerticesB.Count - smoothCurve.Length * 2;
+                for (int i = 0; i < smoothCurve.Length - 1; i++)
+                {
+                    int idx = baseIndex + i * 2;
+                    trianglesB.Add(idx);
+                    trianglesB.Add(idx + 2);
+                    trianglesB.Add(idx + 1);
+                    trianglesB.Add(idx + 2);
+                    trianglesB.Add(idx + 3);
+                    trianglesB.Add(idx + 1);
                 }
             }
         }
@@ -306,22 +300,12 @@ public class BorderSegment
     }
     
     /// <summary>
-    /// Determina la dirección correcta del offset basándose en la orientación de la curva
+    /// Determines the offset direction for border rendering
     /// </summary>
-    private Vector3 DetermineOffsetDirection(Vector3 point, Vector3 tangent, Vector3 perpendicular, bool isSideA, bool sameOrientation)
+    private Vector3 DetermineOffsetDirection(Vector3 point, Vector3 tangent, Vector3 perpendicular, bool countryAIsLeft)
     {
-        // Si ambos países tienen la misma orientación, usar offsets opuestos
-        // Si tienen orientaciones diferentes, usar el mismo offset
-        if (sameOrientation)
-        {
-            // Ambos países tienen la misma orientación, usar offsets opuestos
-            return isSideA ? perpendicular : -perpendicular;
-        }
-        else
-        {
-            // Ambos países tienen orientaciones diferentes, usar el mismo offset
-            return perpendicular;
-        }
+        // SIEMPRE usar offsets opuestos para los dos países
+        return countryAIsLeft ? perpendicular : -perpendicular;
     }
     
     /// <summary>

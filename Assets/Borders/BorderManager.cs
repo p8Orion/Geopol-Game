@@ -187,7 +187,6 @@ public class BorderManager : MonoBehaviour
     /// </summary>
     private void GenerateBorderGeometry(BorderSegment segment)
     {
-        Debug.Log($"[BorderGeometry] Generando geometría para borde: {segment.countryA?.name ?? "Unclaimed"} - {segment.countryB?.name ?? "Unclaimed"}");
         var triangleDataList = icoSphere.triangleDataList;
         var sharedEdges = new List<Vector3[]>();
         var edgeSet = new HashSet<(Vector3, Vector3)>();
@@ -246,31 +245,27 @@ public class BorderManager : MonoBehaviour
             }
         }
         
-        Debug.Log($"[BorderGeometry] Shared edges: {sharedEdges.Count} para {segment.countryA?.name ?? "Unclaimed"} - {segment.countryB?.name ?? "Unclaimed"}");
         if (sharedEdges.Count == 0)
         {
-            Debug.LogWarning($"[BorderGeometry] No shared edges found for border {segment.GetKey()}");
+            Debug.LogWarning($"[Border] No shared edges found for {segment.countryA?.name ?? "Unclaimed"} - {segment.countryB?.name ?? "Unclaimed"}");
             return;
         }
         
-        // Determinar la orientación correcta usando múltiples puntos de la frontera
-        bool shouldReverseForCountryA = DetermineOrientationForCountry(sharedEdges, firstEdgeTriangleA, segment.countryA);
-        bool shouldReverseForCountryB = DetermineOrientationForCountry(sharedEdges, firstEdgeTriangleB, segment.countryB);
-        
-        Debug.Log($"[BorderGeometry] Orientación - País A ({segment.countryA?.name}): {(shouldReverseForCountryA ? "Invertir" : "Normal")}, País B ({segment.countryB?.name}): {(shouldReverseForCountryB ? "Invertir" : "Normal")}");
-        
-        // Create curves for both countries with correct orientation
-        Debug.Log($"[BorderGeometry] Creando curvaA para: {segment.countryA?.name ?? "Unclaimed"}");
-        var curveA = CreateBorderCurves(sharedEdges, shouldReverseForCountryA);
-        Debug.Log($"[BorderGeometry] Creando curvaB para: {segment.countryB?.name ?? "Unclaimed"}");
-        var curveB = CreateBorderCurves(sharedEdges, shouldReverseForCountryB);
-        Debug.Log($"[BorderGeometry] Curvas creadas - A: {curveA.Count} para {segment.countryA?.name ?? "Unclaimed"}, B: {curveB.Count} para {segment.countryB?.name ?? "Unclaimed"}");
+        // Determinar la orientación del primer edge una sola vez
+        bool firstEdgeOrientationForCountryA = DetermineFirstEdgeOrientation(sharedEdges[0], firstEdgeTriangleA, segment.countryA);
+        bool firstEdgeOrientationForCountryB = DetermineFirstEdgeOrientation(sharedEdges[0], firstEdgeTriangleB, segment.countryB);
         
         // Determinar si ambos países necesitan la misma orientación (handedness)
-        bool sameOrientation = shouldReverseForCountryA == shouldReverseForCountryB;
+        bool sameOrientation = firstEdgeOrientationForCountryA == firstEdgeOrientationForCountryB;
         
-        // Update the segment mesh with handedness information
-        segment.UpdateMesh(curveA, curveB, sameOrientation);
+        // Determinar cuál país está a la izquierda vs derecha
+        bool countryAIsLeft = !firstEdgeOrientationForCountryA; // Si no necesita invertir, está a la izquierda
+        
+        // Crear las curvas con orientación por cadena
+        var curvesWithOrientation = CreateBorderCurvesWithOrientationPerChain(sharedEdges, firstEdgeTriangleA, firstEdgeTriangleB, segment.countryA, segment.countryB);
+        
+        // Update the segment mesh with orientation per chain
+        segment.UpdateMesh(curvesWithOrientation);
         if (showDebugInfo)
         {
             Debug.Log($"BorderManager: Generated geometry for {segment.GetKey()} with {sharedEdges.Count} edges");
@@ -278,15 +273,15 @@ public class BorderManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Determina si la orientación de un edge apunta hacia el territorio del país
+    /// Determina la orientación del primer edge usando los triángulos de referencia
     /// </summary>
-    private bool DetermineOrientationForCountry(List<Vector3[]> edges, TriangleData countryTriangle, Country country)
+    private bool DetermineFirstEdgeOrientation(Vector3[] firstEdge, TriangleData countryTriangle, Country country)
     {
         if (countryTriangle == null)
             return false;
             
-        Vector3 edgeMidpoint = (edges[0][0] + edges[0][1]) * 0.5f;
-        Vector3 edgeDirection = (edges[0][1] - edges[0][0]).normalized;
+        Vector3 edgeMidpoint = (firstEdge[0] + firstEdge[1]) * 0.5f;
+        Vector3 edgeDirection = (firstEdge[1] - firstEdge[0]).normalized;
         
         // Calcular el perpendicular (tangente a la esfera)
         Vector3 radial = edgeMidpoint.normalized;
@@ -305,27 +300,48 @@ public class BorderManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Creates border curves from shared edges with optional reversal
+    /// Creates border curves with orientation calculated per chain
     /// </summary>
-    private List<Vector3[]> CreateBorderCurves(List<Vector3[]> sharedEdges, bool shouldReverse)
+    private List<(Vector3[], bool)> CreateBorderCurvesWithOrientationPerChain(List<Vector3[]> sharedEdges, TriangleData firstEdgeTriangleA, TriangleData firstEdgeTriangleB, Country countryA, Country countryB)
     {
-        // Ordenar los edges en cadenas continuas
-        var orderedChains = OrderEdgeChains(sharedEdges);
+        // Ordenar los edges en cadenas continuas garantizando que el país A esté siempre a la izquierda
+        var orderedChains = OrderEdgeChainsWithOrientation(sharedEdges, firstEdgeTriangleA, firstEdgeTriangleB, countryA, countryB);
+        
+        // Crear una curva para cada cadena - como ya están orientadas correctamente, countryA siempre está a la izquierda
+        var curvesWithOrientation = new List<(Vector3[], bool)>();
+        
+        foreach (var (chain, triA, triB) in orderedChains)
+        {
+            if (chain.Count < 2) continue;
+            
+            // Log por cada cadena individual
+            string leftCountry = countryA?.name ?? "Unclaimed";
+            string rightCountry = countryB?.name ?? "Unclaimed";
+            int leftTriangleId = triA?.id ?? -1;
+            int rightTriangleId = triB?.id ?? -1;
+            Debug.Log($"[BorderChain] Izq: {leftCountry} (tri {leftTriangleId}) - Der: {rightCountry} (tri {rightTriangleId}) - Longitud: {chain.Count}");
+            
+            // Como las cadenas ya están orientadas correctamente, countryA siempre está a la izquierda
+            curvesWithOrientation.Add((chain.ToArray(), true)); // true = countryA is left
+        }
+        
+        return curvesWithOrientation;
+    }
+    
+    /// <summary>
+    /// Creates border curves from shared edges using the first edge orientation as reference
+    /// </summary>
+    private List<Vector3[]> CreateBorderCurvesWithOrientation(List<Vector3[]> sharedEdges, TriangleData firstEdgeTriangleA, TriangleData firstEdgeTriangleB, Country countryA, Country countryB)
+    {
+        // Ordenar los edges en cadenas continuas, garantizando que el país A esté siempre a la izquierda
+        var orderedChains = OrderEdgeChainsWithOrientation(sharedEdges, firstEdgeTriangleA, firstEdgeTriangleB, countryA, countryB);
         
         // Crear una curva para cada cadena
         var curves = new List<Vector3[]>();
         
-        foreach (var chain in orderedChains)
+        foreach (var (chain, triA, triB) in orderedChains)
         {
-            var chainArray = chain.ToArray();
-            
-            // Aplicar la orientación determinada
-            if (shouldReverse)
-            {
-                System.Array.Reverse(chainArray);
-            }
-            
-            curves.Add(chainArray);
+            curves.Add(chain.ToArray());
         }
         
         return curves;
@@ -344,44 +360,64 @@ public class BorderManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Ordena los edges frontera en cadenas continuas de puntos, haciendo cada cadena lo más larga posible
+    /// Ordena los edges frontera en cadenas continuas de puntos, garantizando que el país A esté siempre a la izquierda
     /// </summary>
-    private List<List<Vector3>> OrderEdgeChains(List<Vector3[]> edges)
+    private List<(List<Vector3>, TriangleData, TriangleData)> OrderEdgeChainsWithOrientation(List<Vector3[]> edges, TriangleData firstEdgeTriangleA, TriangleData firstEdgeTriangleB, Country countryA, Country countryB)
     {
-        if (edges.Count == 0) return new List<List<Vector3>>();
+        if (edges.Count == 0) return new List<(List<Vector3>, TriangleData, TriangleData)>();
         float tolerance = 0.05f;
         float grid = 1e-3f;
-        // Normalizar edges (menor primero)
-        var normalizedEdges = new List<(Vector3, Vector3)>();
+        
+        // Normalizar edges (menor primero) y guardar sus triángulos de referencia
+        var normalizedEdges = new List<(Vector3, Vector3, TriangleData, TriangleData)>();
+        var triangleDataList = icoSphere.triangleDataList;
+        
         foreach (var e in edges)
         {
             var a = Quantize(e[0], grid);
             var b = Quantize(e[1], grid);
+            Vector3 start, end;
             if (a.sqrMagnitude < b.sqrMagnitude)
-                normalizedEdges.Add((a, b));
+            {
+                start = a; end = b;
+            }
             else
-                normalizedEdges.Add((b, a));
+            {
+                start = b; end = a;
+            }
+            
+            // Buscar los triángulos que comparten este edge
+            var (triA, triB) = FindTrianglesForEdge(new Vector3[] { start, end }, countryA, countryB);
+            normalizedEdges.Add((start, end, triA, triB));
         }
+        
         // Diccionario de conexiones
         var pointToEdges = new Dictionary<Vector3, List<int>>();
         for (int i = 0; i < normalizedEdges.Count; i++)
         {
-            var (a, b) = normalizedEdges[i];
+            var (a, b, _, _) = normalizedEdges[i];
             if (!pointToEdges.ContainsKey(a)) pointToEdges[a] = new List<int>();
             if (!pointToEdges.ContainsKey(b)) pointToEdges[b] = new List<int>();
             pointToEdges[a].Add(i);
             pointToEdges[b].Add(i);
         }
+        
         var used = new HashSet<int>();
-        var chains = new List<List<Vector3>>();
+        var chains = new List<(List<Vector3>, TriangleData, TriangleData)>();
+        
         for (int i = 0; i < normalizedEdges.Count; i++)
         {
             if (used.Contains(i)) continue;
+            
             var chain = new List<Vector3>();
-            var (start, end) = normalizedEdges[i];
+            var (start, end, triA, triB) = normalizedEdges[i];
+            
+            // Comenzar con orientación normal (start -> end)
             chain.Add(start);
             chain.Add(end);
+            
             used.Add(i);
+            
             // Extender por adelante
             bool extended = true;
             while (extended)
@@ -391,7 +427,7 @@ public class BorderManager : MonoBehaviour
                 foreach (var idx in pointToEdges[front])
                 {
                     if (used.Contains(idx)) continue;
-                    var (a, b) = normalizedEdges[idx];
+                    var (a, b, _, _) = normalizedEdges[idx];
                     if ((a - front).sqrMagnitude < tolerance * tolerance)
                     {
                         chain.Add(b);
@@ -408,6 +444,7 @@ public class BorderManager : MonoBehaviour
                     }
                 }
             }
+            
             // Extender por atrás
             extended = true;
             while (extended)
@@ -417,7 +454,7 @@ public class BorderManager : MonoBehaviour
                 foreach (var idx in pointToEdges[back])
                 {
                     if (used.Contains(idx)) continue;
-                    var (a, b) = normalizedEdges[idx];
+                    var (a, b, _, _) = normalizedEdges[idx];
                     if ((a - back).sqrMagnitude < tolerance * tolerance)
                     {
                         chain.Insert(0, b);
@@ -434,8 +471,23 @@ public class BorderManager : MonoBehaviour
                     }
                 }
             }
-            chains.Add(chain);
+            
+            // Verificar si el país A está a la izquierda de esta cadena usando los triángulos guardados
+            if (chain.Count >= 2 && triA != null && triB != null)
+            {
+                Vector3[] firstEdge = { chain[0], chain[1] };
+                bool orientationForCountryA = DetermineFirstEdgeOrientation(firstEdge, triA, countryA);
+                
+                // Si el país A NO está a la izquierda, invertir la cadena
+                if (orientationForCountryA)
+                {
+                    chain.Reverse();
+                }
+            }
+            
+            chains.Add((chain, triA, triB));
         }
+        
         // Intentar unir cadenas abiertas (extremos iguales)
         bool merged = true;
         while (merged)
@@ -445,8 +497,8 @@ public class BorderManager : MonoBehaviour
             {
                 for (int j = i + 1; j < chains.Count; j++)
                 {
-                    var ci = chains[i];
-                    var cj = chains[j];
+                    var (ci, triAi, triBi) = chains[i];
+                    var (cj, triAj, triBj) = chains[j];
                     if ((ci[ci.Count - 1] - cj[0]).sqrMagnitude < tolerance * tolerance)
                     {
                         ci.AddRange(cj.Skip(1));
@@ -457,7 +509,7 @@ public class BorderManager : MonoBehaviour
                     else if ((ci[0] - cj[cj.Count - 1]).sqrMagnitude < tolerance * tolerance)
                     {
                         cj.AddRange(ci.Skip(1));
-                        chains[i] = cj;
+                        chains[i] = (cj, triAj, triBj);
                         chains.RemoveAt(j);
                         merged = true;
                         break;
@@ -466,7 +518,7 @@ public class BorderManager : MonoBehaviour
                     {
                         cj.Reverse();
                         cj.AddRange(ci.Skip(1));
-                        chains[i] = cj;
+                        chains[i] = (cj, triAj, triBj);
                         chains.RemoveAt(j);
                         merged = true;
                         break;
@@ -483,8 +535,56 @@ public class BorderManager : MonoBehaviour
                 if (merged) break;
             }
         }
-        Debug.Log($"[BORDER] Cadenas generadas para esta frontera: {chains.Count} (longitudes: {string.Join(", ", chains.ConvertAll(c => c.Count))})");
+        
+        Debug.Log($"[BORDER] Cadenas generadas para esta frontera: {chains.Count} (longitudes: {string.Join(", ", chains.ConvertAll(c => c.Item1.Count))})");
         return chains;
+    }
+    
+    /// <summary>
+    /// Encuentra los triángulos específicos que comparten un edge entre dos países
+    /// </summary>
+    private (TriangleData, TriangleData) FindTrianglesForEdge(Vector3[] edge, Country countryA, Country countryB)
+    {
+        var triangleDataList = icoSphere.triangleDataList;
+        float tolerance = 0.01f;
+        
+        for (int i = 0; i < triangleDataList.Count; i++)
+        {
+            var ourTriangle = triangleDataList[i];
+            if (ourTriangle.country != countryA && ourTriangle.country != countryB) continue;
+            
+            foreach (int adjacentId in ourTriangle.adjacentTriangles)
+            {
+                if (adjacentId < triangleDataList.Count)
+                {
+                    var neighborTriangle = triangleDataList[adjacentId];
+                    if ((ourTriangle.country == countryA && neighborTriangle.country == countryB) ||
+                        (ourTriangle.country == countryB && neighborTriangle.country == countryA))
+                    {
+                        Vector3[] sharedVertices = FindSharedEdgeVertices(ourTriangle, neighborTriangle);
+                        if (sharedVertices.Length == 2)
+                        {
+                            // Verificar si estos vértices coinciden con el edge que buscamos
+                            if ((Vector3.Distance(sharedVertices[0], edge[0]) < tolerance && Vector3.Distance(sharedVertices[1], edge[1]) < tolerance) ||
+                                (Vector3.Distance(sharedVertices[0], edge[1]) < tolerance && Vector3.Distance(sharedVertices[1], edge[0]) < tolerance))
+                            {
+                                // Retornar en el orden correcto: countryA, countryB
+                                if (ourTriangle.country == countryA)
+                                {
+                                    return (ourTriangle, neighborTriangle);
+                                }
+                                else
+                                {
+                                    return (neighborTriangle, ourTriangle);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return (null, null);
     }
     
     /// <summary>
