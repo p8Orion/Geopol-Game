@@ -1408,6 +1408,7 @@ MonoBehaviour:
   showBrushPreview: 1
   brushPreviewColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   useNewInputSystem: 1
+  useCachedTriangleCenters: 1
   currentPreviewMode: 0
 --- !u!1 &1147702382
 GameObject:
@@ -1577,13 +1578,18 @@ MonoBehaviour:
   terrainCount: 11
   enableBlur: 1
   blurRadius: 1
+  oceanTerrainID: 10
+  excludeOceanFromBorderNoise: 0
+  excludeOceanFromBorderBlur: 1
+  enableCoastalVariation: 1
+  coastalVariationScale: 0.05
+  smoothCoastThreshold: 0.9
   showGizmos: 0
   gizmoScale: 0.1
   gizmoColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   mainLabelSize: 14
   neighborLabelSize: 10
   neighborLabelOffset: 0.33
-  useCurveBorderRenderer: 1
   idCamera: {fileID: 430729443}
   idLayer:
     serializedVersion: 2
