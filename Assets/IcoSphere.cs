@@ -21,6 +21,10 @@ public class IcoSphere : MonoBehaviour
     public int terrainCount = 11; // Number of terrain types to use (max 12)
     public bool enableBlur = true; // Whether to apply blur to splat maps
     public int blurRadius = 1; // Radius of the blur (1 = 3x3, 2 = 5x5, etc.)
+    [Header("Ocean Border Settings")]
+    public int oceanTerrainID = 10; // ID of the ocean terrain type (default: 10 for KoppenTerrainMapper.TerrainType.Ocean)
+    public bool excludeOceanFromBorderNoise = false; // Whether to exclude ocean borders from noise generation
+    public bool excludeOceanFromBorderBlur = true; // Whether to exclude ocean borders from blur generation
 
     [Header("Debug Settings")]
     public bool showGizmos = true; 
@@ -58,6 +62,18 @@ public class IcoSphere : MonoBehaviour
     private BorderManager borderManager;
 
     Texture2D[] splatMaps = new Texture2D[3];  // 3 splat maps for 12 terrain types
+
+    // Helper method to check if a terrain type is ocean for noise exclusion
+    private bool IsOceanTerrainForNoise(int terrainType)
+    {
+        return excludeOceanFromBorderNoise && terrainType == oceanTerrainID;
+    }
+    
+    // Helper method to check if a terrain type is ocean for blur exclusion
+    private bool IsOceanTerrainForBlur(int terrainType)
+    {
+        return excludeOceanFromBorderBlur && terrainType == oceanTerrainID;
+    }
 
     // Backward compatibility property for existing code
     public List<Material> terrainMaterials
@@ -849,6 +865,35 @@ public class IcoSphere : MonoBehaviour
 
                     if (isBorder)
                     {
+                        // Check if either the center terrain or any neighbor is ocean - if so, skip noise
+                        bool shouldSkipNoise = IsOceanTerrainForNoise(centerOwner);
+                        
+                        // Check neighbors for ocean terrain
+                        for (int j = -1; j <= 1 && !shouldSkipNoise; j++)
+                        {
+                            for (int i = -1; i <= 1 && !shouldSkipNoise; i++)
+                            {
+                                if (i == 0 && j == 0) continue;
+                                int nx = x + i;
+                                int ny = y + j;
+
+                                if (nx < 0) nx += splatMapResolution;
+                                if (nx >= splatMapResolution) nx -= splatMapResolution;
+                                if (ny < 0) ny += splatMapResolution;
+                                if (ny >= splatMapResolution) ny -= splatMapResolution;
+                                
+                                int neighborOwner = terrainOwner[ny * splatMapResolution + nx];
+                                if (neighborOwner != -1 && IsOceanTerrainForNoise(neighborOwner))
+                                {
+                                    shouldSkipNoise = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // If ocean is involved, skip the noise generation
+                        if (shouldSkipNoise) continue;
+                        
                         // 2. If it's a border pixel, collect its *immediate* neighbors to determine what it can switch to.
                         List<int> neighborOwners = new List<int>();
                         for (int j = -1; j <= 1; j++)
@@ -1055,6 +1100,8 @@ public class IcoSphere : MonoBehaviour
                 
                 // 1. Detect if the pixel is near a border using the specified depth.
                 bool isBorder = false;
+                bool involvesOcean = IsOceanTerrainForBlur(centerOwner);
+                
                 for (int j = -borderDepth; j <= borderDepth; j++)
                 {
                     for (int i = -borderDepth; i <= borderDepth; i++)
@@ -1071,6 +1118,11 @@ public class IcoSphere : MonoBehaviour
                         int neighborOwner = terrainOwner[ny * resolution + nx];
                         if (neighborOwner != -1 && neighborOwner != centerOwner)
                         {
+                            // Check if either terrain is ocean
+                            if (IsOceanTerrainForBlur(neighborOwner))
+                            {
+                                involvesOcean = true;
+                            }
                             isBorder = true;
                             goto FoundBorder; // Exit the loops as soon as we confirm it's a border.
                         }
@@ -1078,7 +1130,8 @@ public class IcoSphere : MonoBehaviour
                 }
                 FoundBorder:;
                 
-                isBorderPixel[centerIndex] = isBorder;
+                // Only mark as border pixel if it doesn't involve ocean
+                isBorderPixel[centerIndex] = isBorder && !involvesOcean;
             }
         }
         

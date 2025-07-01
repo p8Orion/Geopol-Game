@@ -46,6 +46,9 @@ public class MapEditor : MonoBehaviour
     [Header("Editor State")]
     public bool useNewInputSystem = true;
     
+    [Header("Performance Settings")]
+    public bool useCachedTriangleCenters = true; // Cache triangle centers to avoid recalculation
+    
     // --- Private State ---
     private bool isEditing = false;
     private bool isPainting = false;
@@ -54,6 +57,10 @@ public class MapEditor : MonoBehaviour
     private GameObject brushPreviewInstance;
     private string statusMessage = "Ready. Press E to toggle.";
     private bool isDirty = false; // To track if we have un-applied changes
+    
+    // --- Performance Optimization ---
+    private Vector3[] cachedTriangleCenters;
+    private bool triangleCentersCached = false;
 
     // --- Materials ---
     // The main splat map material is no longer cached here.
@@ -102,6 +109,12 @@ public class MapEditor : MonoBehaviour
         
         // Check if save data was loaded on startup
         CheckIfSaveDataWasLoaded();
+        
+        // Cache triangle centers for performance
+        if (useCachedTriangleCenters)
+        {
+            CacheTriangleCenters();
+        }
     }
 
     void OnEnable()
@@ -153,38 +166,7 @@ public class MapEditor : MonoBehaviour
         editorWindowRect = GUILayout.Window(0, editorWindowRect, DrawEditorWindow, "Map Editor");
     }
 
-    void OnDrawGizmos()
-    {
-        if (!isEditing || currentPreviewMode != PreviewMode.Country) return;
-        
-        // Only draw gizmos in editor mode (Scene view)
-        #if UNITY_EDITOR
-        // Draw country dots in the center of each triangle
-        if (icoSphere != null && icoSphere.triangleDataList != null)
-        {
-            foreach (var triangle in icoSphere.triangleDataList)
-            {
-                if (triangle.country != null)
-                {
-                    Vector3 center = triangle.GetCenter();
-                    
-                    // Draw country dot
-                    Gizmos.color = triangle.country.color;
-                    Gizmos.DrawSphere(center, 0.1f); // Small dot in triangle center
-                    
-                    // Draw country name
-                    if (UnityEditor.SceneView.lastActiveSceneView != null)
-                    {
-                        GUIStyle labelStyle = new GUIStyle();
-                        labelStyle.fontSize = 8;
-                        labelStyle.normal.textColor = Color.white;
-                        UnityEditor.Handles.Label(center, triangle.country.name, labelStyle);
-                    }
-                }
-            }
-        }
-        #endif
-    }
+
 
     void OnRenderObject()
     {
@@ -495,6 +477,20 @@ public class MapEditor : MonoBehaviour
         
         GUILayout.Space(10);
 
+        // --- Performance Settings Section ---
+        GUILayout.Label("Performance Settings", EditorStyles.boldLabel);
+        useCachedTriangleCenters = GUILayout.Toggle(useCachedTriangleCenters, "Use Cached Triangle Centers");
+        
+        if (useCachedTriangleCenters)
+        {
+            if (GUILayout.Button("Recache Triangle Centers"))
+            {
+                CacheTriangleCenters();
+            }
+        }
+        
+        GUILayout.Space(10);
+
         // --- Status Message ---
         GUILayout.Label($"Status: {statusMessage}", EditorStyles.wordWrappedLabel);
         
@@ -770,10 +766,23 @@ public class MapEditor : MonoBehaviour
         float brushRadiusSquared = brushSize * brushSize;
         bool firstPainted = true; // Debug flag
         
-        for (int i = 0; i < icoSphere.triangleDataList.Count; i++)
+        int triangleCount = icoSphere.triangleDataList.Count;
+        
+        for (int i = 0; i < triangleCount; i++)
         {
             var triangle = icoSphere.triangleDataList[i];
-            Vector3 triangleCenter = (triangle.a + triangle.b + triangle.c) / 3f;
+            
+            // Use cached center if available
+            Vector3 triangleCenter;
+            if (useCachedTriangleCenters && triangleCentersCached && i < cachedTriangleCenters.Length)
+            {
+                triangleCenter = cachedTriangleCenters[i];
+            }
+            else
+            {
+                triangleCenter = (triangle.a + triangle.b + triangle.c) / 3f;
+            }
+            
             float distanceSquared = Vector3.SqrMagnitude(triangleCenter - position);
             
             if (distanceSquared <= brushRadiusSquared)
@@ -1243,6 +1252,26 @@ public class MapEditor : MonoBehaviour
         {
             UpdateStatus("No save data found on startup.");
         }
+    }
+
+    /// <summary>
+    /// Caches triangle centers to avoid recalculation during painting
+    /// </summary>
+    void CacheTriangleCenters()
+    {
+        if (icoSphere == null || icoSphere.triangleDataList == null) return;
+        
+        int triangleCount = icoSphere.triangleDataList.Count;
+        cachedTriangleCenters = new Vector3[triangleCount];
+        
+        for (int i = 0; i < triangleCount; i++)
+        {
+            var triangle = icoSphere.triangleDataList[i];
+            cachedTriangleCenters[i] = (triangle.a + triangle.b + triangle.c) / 3f;
+        }
+        
+        triangleCentersCached = true;
+        Debug.Log($"MapEditor: Cached {triangleCount} triangle centers for performance optimization");
     }
 
     // --- Country Management ---
