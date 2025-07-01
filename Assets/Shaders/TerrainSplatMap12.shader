@@ -21,6 +21,11 @@ Shader "Custom/TerrainSplatMap12"
         _TilingScale ("Tiling Scale", Range(1.0, 50.0)) = 10.0
         _SpecColor ("Specular Color", Color) = (0.5, 0.5, 0.5, 1)
         _Shininess ("Shininess", Range(0.01, 1)) = 0.078125
+        _WaveMask ("Wave Mask", 2D) = "white" {}
+        _WaveSpeed ("Wave Speed", Float) = 1.0
+        _WaveAmplitude ("Wave Amplitude", Float) = 0.5
+        _WaveFrequency ("Wave Frequency", Float) = 1.0
+        _WaveWidth ("Wave Width", Float) = 1.0
     }
     SubShader
     {
@@ -54,6 +59,11 @@ Shader "Custom/TerrainSplatMap12"
             TEXTURE2D(_TerrainTex11); SAMPLER(sampler_TerrainTex11);
             TEXTURE2D(_TerrainTex12); SAMPLER(sampler_TerrainTex12);
 
+            TEXTURE2D(_WaveMask); SAMPLER(sampler_WaveMask);
+            float _WaveSpeed;
+            float _WaveAmplitude;
+            float _WaveFrequency;
+            float _WaveWidth;
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _SplatMap1_ST;
@@ -143,7 +153,16 @@ Shader "Custom/TerrainSplatMap12"
                 
                 // Combine lighting: (Ambient + Diffuse) * Albedo + Specular
                 half3 finalColor = (ambient + diffuse) * blendedColor.rgb + specular;
-                return half4(finalColor, 1.0);
+
+                // --- OLEAJE ---
+                float mask = SAMPLE_TEXTURE2D(_WaveMask, sampler_WaveMask, IN.uv).r;
+                if (mask > 0.1)
+                {
+                    float wave = sin(_Time.y * _WaveSpeed + IN.uv.x * _WaveFrequency) * _WaveAmplitude;
+                    float waveMix = mask * (0.5 + 0.5 * wave); // 0..1
+                    finalColor = lerp(finalColor, float3(1,1,1), waveMix); // blanco animado
+                }
+                   return half4(IN.uv, 0, 1);
             }
             ENDHLSL
         }

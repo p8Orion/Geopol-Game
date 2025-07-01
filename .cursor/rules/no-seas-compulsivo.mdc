@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# No generes ni modifiques código que no te pedí o que no sea inmediatamente necesario para lo que te medí.
+
+# Agotá todas las instancias de análisis del código y consultá antes de generar código para loguear. No lo soporto y no suele ser útil. Es preferible encarar para el lado de los gizmos.

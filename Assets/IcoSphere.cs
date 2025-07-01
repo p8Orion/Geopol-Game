@@ -13,7 +13,7 @@ public class IcoSphere : MonoBehaviour
     public List<TerrainType> terrainTypes = new();
 
     [Header("Splat Map Settings")]
-    public int splatMapResolution = 512;
+    public int splatMapResolution = 1024;
     public float borderNoiseStrength = 0.4f; // How much to break up triangle borders. Higher values mean more mixing.
     public float borderNoiseScale = 0.25f; // The scale of the border noise. Smaller values create larger patches.
     public int borderDepth = 5; // How many pixels deep the border effect should be.
@@ -25,6 +25,10 @@ public class IcoSphere : MonoBehaviour
     public int oceanTerrainID = 10; // ID of the ocean terrain type (default: 10 for KoppenTerrainMapper.TerrainType.Ocean)
     public bool excludeOceanFromBorderNoise = false; // Whether to exclude ocean borders from noise generation
     public bool excludeOceanFromBorderBlur = true; // Whether to exclude ocean borders from blur generation
+    [Header("Coastal Variation Settings")]
+    public bool enableCoastalVariation = true; // Whether to vary coastal noise patterns
+    public float coastalVariationScale = 0.05f; // Scale of coastal variation (smaller = larger regions)
+    public float smoothCoastThreshold = 0.6f; // Threshold for smooth vs rough coasts (0-1)
 
     [Header("Debug Settings")]
     public bool showGizmos = true; 
@@ -60,8 +64,51 @@ public class IcoSphere : MonoBehaviour
     
     // New border system
     private BorderManager borderManager;
+    
+    // Ocean wave effect system
+    private OceanWaveEffect oceanWaveEffect;
 
     Texture2D[] splatMaps = new Texture2D[3];  // 3 splat maps for 12 terrain types
+
+    // --- Secondary Materials System ---
+    private List<Material> secondaryMaterials = new List<Material>();
+
+    /// <summary>
+    /// Registers a secondary material to be rendered after the main terrain material.
+    /// </summary>
+    public void RegisterSecondaryMaterial(Material mat)
+    {
+        if (mat != null && !secondaryMaterials.Contains(mat))
+            secondaryMaterials.Add(mat);
+        ApplyMaterials();
+    }
+
+    /// <summary>
+    /// Unregisters a secondary material.
+    /// </summary>
+    public void UnregisterSecondaryMaterial(Material mat)
+    {
+        if (mat != null && secondaryMaterials.Contains(mat))
+            secondaryMaterials.Remove(mat);
+        ApplyMaterials();
+    }
+
+    /// <summary>
+    /// Applies the main terrain material and all registered secondary materials to the MeshRenderer.
+    /// </summary>
+    public void ApplyMaterials()
+    {
+        var renderer = GetComponent<MeshRenderer>();
+        if (renderer == null) return;
+        var mats = new List<Material>();
+        if (mainTerrainMaterial != null)
+            mats.Add(mainTerrainMaterial);
+        mats.AddRange(secondaryMaterials);
+        renderer.materials = mats.ToArray();
+    }
+
+    // Guarda el material principal para el sistema de refresh
+    private Material mainTerrainMaterial;
 
     // Helper method to check if a terrain type is ocean for noise exclusion
     private bool IsOceanTerrainForNoise(int terrainType)
@@ -217,6 +264,9 @@ public class IcoSphere : MonoBehaviour
 
         // Initialize new border system
         InitializeBorderManager();
+        
+        // Initialize ocean wave effect system
+        InitializeOceanWaveEffect();
 
         // Check if save data exists and load it instead of generating new data
         if (TryLoadExistingSaveData())
@@ -291,6 +341,20 @@ public class IcoSphere : MonoBehaviour
         {
             borderManager = gameObject.AddComponent<BorderManager>();
             Debug.Log("IcoSphere: Added BorderManager component.");
+        }
+    }
+    
+    /// <summary>
+    /// Initializes the ocean wave effect system
+    /// </summary>
+    private void InitializeOceanWaveEffect()
+    {
+        // Add OceanWaveEffect if it doesn't exist
+        oceanWaveEffect = GetComponent<OceanWaveEffect>();
+        if (oceanWaveEffect == null)
+        {
+            oceanWaveEffect = gameObject.AddComponent<OceanWaveEffect>();
+            Debug.Log("IcoSphere: Added OceanWaveEffect component.");
         }
     }
 
@@ -379,9 +443,15 @@ public class IcoSphere : MonoBehaviour
         // Assign all terrain textures and parameters
         SetupTerrainMaterial(newMaterial);
 
-        // Apply the new material to the renderer
-        GetComponent<MeshRenderer>().material = newMaterial;
-        Debug.Log("IcoSphere: Created and applied a new splat material.");
+        // Set as main material and refresh all
+        mainTerrainMaterial = newMaterial;
+        ApplyMaterials();
+        Debug.Log("IcoSphere: Created and applied a new splat material (with secondary materials if any).");
+
+        if (oceanWaveEffect != null)
+        {
+            oceanWaveEffect.ApplyWaveMaskToMaterial(mainTerrainMaterial);
+        }
     }
 
     public void Generate()
@@ -924,6 +994,20 @@ public class IcoSphere : MonoBehaviour
                         float noise4 = Mathf.PerlinNoise(x * borderNoiseScale * 16.0f + 300, y * borderNoiseScale * 16.0f + 300) * 0.125f;
                         float finalNoise = (noise + noise2 + noise3 + noise4) / 1.875f;
 
+                        // Apply coastal variation if enabled
+                        if (enableCoastalVariation)
+                        {
+                            // Generate regional variation pattern
+                            float regionalVariation = Mathf.PerlinNoise(x * coastalVariationScale, y * coastalVariationScale);
+                            
+                            // If this region is "smooth coast", reduce the noise strength
+                            if (regionalVariation > smoothCoastThreshold)
+                            {
+                                // Reduce noise strength for smooth coasts (less "chispitas")
+                                finalNoise = Mathf.Lerp(finalNoise, 1.0f, 0.7f);
+                            }
+                        }
+
                         if (finalNoise < borderNoiseStrength)
                         {
                             List<int> candidates = neighborOwners.FindAll(owner => owner != centerOwner);
@@ -997,6 +1081,12 @@ public class IcoSphere : MonoBehaviour
         }
         
         Debug.Log($"3 splat maps generated{(enableBlur ? $" and blurred (radius: {blurRadius})" : "")}: {splatMapResolution}x{splatMapResolution}");
+        
+        // Update ocean wave effect with the new terrain data
+        if (oceanWaveEffect != null)
+        {
+            oceanWaveEffect.UpdateWaveMask(terrainOwner, splatMapResolution, oceanTerrainID);
+        }
     }
     
     Vector2 Vector3ToUV(Vector3 pos)
@@ -1342,5 +1432,13 @@ public class IcoSphere : MonoBehaviour
         {
             borderManager.GenerateAllBorders();
         }
+    }
+
+    /// <summary>
+    /// Devuelve el material principal de terreno actualmente asignado.
+    /// </summary>
+    public Material GetMainTerrainMaterial()
+    {
+        return mainTerrainMaterial;
     }
 }
