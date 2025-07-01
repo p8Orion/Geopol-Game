@@ -25,7 +25,7 @@ Shader "Custom/TerrainSplatMap12"
         _WaveSpeed ("Wave Speed", Float) = 1.0
         _WaveAmplitude ("Wave Amplitude", Float) = 0.5
         _WaveFrequency ("Wave Frequency", Float) = 5.0
-        _WaveThreshold ("Wave Threshold", Range(0.5, 0.95)) = 0.9
+        _WaveThreshold ("Wave Threshold", Range(0.5, 0.95)) = 0.8
     }
     SubShader
     {
@@ -60,10 +60,6 @@ Shader "Custom/TerrainSplatMap12"
             TEXTURE2D(_TerrainTex12); SAMPLER(sampler_TerrainTex12);
 
             TEXTURE2D(_WaveMask); SAMPLER(sampler_WaveMask);
-            float _WaveSpeed;
-            float _WaveAmplitude;
-            float _WaveFrequency;
-            float _WaveThreshold;
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _SplatMap1_ST;
@@ -73,6 +69,11 @@ Shader "Custom/TerrainSplatMap12"
                 float _TilingScale;
                 half4 _SpecColor;
                 half _Shininess;
+                // *** METER LAS VARIABLES ACÁ SOLUCIONÓ UN BUG INMUNDO EN QUE SE ROMPÍA LA ILUMINACIÓN AL AGREGAR EL OLEAJE ***
+                float _WaveSpeed;
+                float _WaveAmplitude;
+                float _WaveFrequency;
+                float _WaveThreshold;
             CBUFFER_END
 
             struct Attributes
@@ -157,7 +158,7 @@ Shader "Custom/TerrainSplatMap12"
                 
                 // --- OLEAJE (BRANCHLESS) ---
                 float waveMask = SAMPLE_TEXTURE2D(_WaveMask, sampler_WaveMask, IN.uv).r;
-                
+
                 // Branchless wave mask check: smoothstep para crear una transición suave
                 float waveMaskActive = smoothstep(0.01, 0.05, waveMask) * smoothstep(0.998, 0.95, waveMask);
                 
@@ -170,7 +171,7 @@ Shader "Custom/TerrainSplatMap12"
                 // Branchless crest detection: smoothstep para detectar crestas
                 float lineIntensity = smoothstep(_WaveThreshold, _WaveThreshold + 0.1, wavePattern);
                 lineIntensity = smoothstep(0.0, 1.0, lineIntensity);
-                
+
                 // Branchless wave line threshold
                 float waveLine = smoothstep(0.01, 0.05, lineIntensity);
                 
@@ -184,7 +185,7 @@ Shader "Custom/TerrainSplatMap12"
                 // Apply wave effect
                 float3 waveLineColor = float3(1.0, 1.0, 1.0);
                 finalColor = lerp(finalColor, waveLineColor, blendFactor);
-                
+
                 return half4(finalColor, 1.0);
             }
             ENDHLSL

@@ -6,7 +6,7 @@ public class OceanWaveEffect : MonoBehaviour
     public float waveSpeed = 0.5f;
     public float waveAmplitude = 0.1f;
     public float waveFrequency = 10.0f;
-    public float waveWidth = 0.05f; // Ancho de la zona de oleaje
+    public float waveWidth = 0.1f; // Ancho de la zona de oleaje
     [Header("Wave Mask Settings")]
     public int waveMaskThickness = 3; // Grosor de la banda de oleaje en píxeles
     
