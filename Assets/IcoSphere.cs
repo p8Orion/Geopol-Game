@@ -13,7 +13,7 @@ public class IcoSphere : MonoBehaviour
     public List<TerrainType> terrainTypes = new();
 
     [Header("Splat Map Settings")]
-    public int splatMapResolution = 256;
+    public int splatMapResolution = 512;
     public float borderNoiseStrength = 0.4f; // How much to break up triangle borders. Higher values mean more mixing.
     public float borderNoiseScale = 0.25f; // The scale of the border noise. Smaller values create larger patches.
     public int borderDepth = 5; // How many pixels deep the border effect should be.
@@ -918,9 +918,11 @@ public class IcoSphere : MonoBehaviour
                         }
                         
                         // 3. Apply noise to see if this pixel should be "flipped".
-                        float noise = Mathf.PerlinNoise(x * borderNoiseScale, y * borderNoiseScale);
+                        float noise = Mathf.PerlinNoise(x * borderNoiseScale , y * borderNoiseScale );
                         float noise2 = Mathf.PerlinNoise(x * borderNoiseScale * 2.5f + 100, y * borderNoiseScale * 2.5f + 100) * 0.5f;
-                        float finalNoise = (noise + noise2) / 1.5f;
+                        float noise3 = Mathf.PerlinNoise(x * borderNoiseScale * 8.0f + 200, y * borderNoiseScale * 8.0f + 200) * 0.25f;
+                        float noise4 = Mathf.PerlinNoise(x * borderNoiseScale * 16.0f + 300, y * borderNoiseScale * 16.0f + 300) * 0.125f;
+                        float finalNoise = (noise + noise2 + noise3 + noise4) / 1.875f;
 
                         if (finalNoise < borderNoiseStrength)
                         {
