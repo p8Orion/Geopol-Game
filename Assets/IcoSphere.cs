@@ -487,10 +487,10 @@ public class IcoSphere : MonoBehaviour
             newNormals[baseIdx + 1] = tri.b.normalized;
             newNormals[baseIdx + 2] = tri.c.normalized;
 
-            // Spherical UVs
-            newUVs[baseIdx + 0] = new Vector2(0.5f + Mathf.Atan2(newNormals[baseIdx + 0].z, newNormals[baseIdx + 0].x) / (2 * Mathf.PI), 0.5f - Mathf.Asin(newNormals[baseIdx + 0].y) / Mathf.PI);
-            newUVs[baseIdx + 1] = new Vector2(0.5f + Mathf.Atan2(newNormals[baseIdx + 1].z, newNormals[baseIdx + 1].x) / (2 * Mathf.PI), 0.5f - Mathf.Asin(newNormals[baseIdx + 1].y) / Mathf.PI);
-            newUVs[baseIdx + 2] = new Vector2(0.5f + Mathf.Atan2(newNormals[baseIdx + 2].z, newNormals[baseIdx + 2].x) / (2 * Mathf.PI), 0.5f - Mathf.Asin(newNormals[baseIdx + 2].y) / Mathf.PI);
+            // Spherical UVs based on actual 3D positions
+            newUVs[baseIdx + 0] = Vector3ToUV(tri.a);
+            newUVs[baseIdx + 1] = Vector3ToUV(tri.b);
+            newUVs[baseIdx + 2] = Vector3ToUV(tri.c);
             
             // Triangle ID as color
             Color color = new Color(
@@ -1381,10 +1381,10 @@ public class IcoSphere : MonoBehaviour
             newNormals[baseIdx + 1] = tri.b.normalized;
             newNormals[baseIdx + 2] = tri.c.normalized;
 
-            // Spherical UVs
-            newUVs[baseIdx + 0] = new Vector2(0.5f + Mathf.Atan2(newNormals[baseIdx + 0].z, newNormals[baseIdx + 0].x) / (2 * Mathf.PI), 0.5f - Mathf.Asin(newNormals[baseIdx + 0].y) / Mathf.PI);
-            newUVs[baseIdx + 1] = new Vector2(0.5f + Mathf.Atan2(newNormals[baseIdx + 1].z, newNormals[baseIdx + 1].x) / (2 * Mathf.PI), 0.5f - Mathf.Asin(newNormals[baseIdx + 1].y) / Mathf.PI);
-            newUVs[baseIdx + 2] = new Vector2(0.5f + Mathf.Atan2(newNormals[baseIdx + 2].z, newNormals[baseIdx + 2].x) / (2 * Mathf.PI), 0.5f - Mathf.Asin(newNormals[baseIdx + 2].y) / Mathf.PI);
+            // Spherical UVs based on actual 3D positions
+            newUVs[baseIdx + 0] = Vector3ToUV(tri.a);
+            newUVs[baseIdx + 1] = Vector3ToUV(tri.b);
+            newUVs[baseIdx + 2] = Vector3ToUV(tri.c);
             
             // Triangle ID as color
             Color color = new Color(

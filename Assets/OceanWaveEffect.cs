@@ -8,7 +8,7 @@ public class OceanWaveEffect : MonoBehaviour
     public float waveFrequency = 10.0f;
     public float waveWidth = 0.05f; // Ancho de la zona de oleaje
     [Header("Wave Mask Settings")]
-    public int waveMaskThickness = 15; // Grosor de la banda de oleaje en píxeles
+    public int waveMaskThickness = 5; // Grosor de la banda de oleaje en píxeles
     
     [Header("References")]
     public IcoSphere icoSphere;
