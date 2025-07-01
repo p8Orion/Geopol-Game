@@ -3,12 +3,12 @@ using UnityEngine;
 public class OceanWaveEffect : MonoBehaviour
 {
     [Header("Wave Settings")]
-    public float waveSpeed = 1.0f;
+    public float waveSpeed = 0.5f;
     public float waveAmplitude = 0.1f;
     public float waveFrequency = 10.0f;
     public float waveWidth = 0.05f; // Ancho de la zona de oleaje
     [Header("Wave Mask Settings")]
-    public int waveMaskThickness = 5; // Grosor de la banda de oleaje en píxeles
+    public int waveMaskThickness = 3; // Grosor de la banda de oleaje en píxeles
     
     [Header("References")]
     public IcoSphere icoSphere;
@@ -75,7 +75,7 @@ public class OceanWaveEffect : MonoBehaviour
             pixels[i] = Color.black;
         }
 
-        // Detect ocean-land borders and create thick wave band
+        // Detect ocean-land borders and create distance-based wave mask
         bool[] isWaveBorder = new bool[resolution * resolution];
         
         // First pass: detect border pixels
@@ -119,31 +119,49 @@ public class OceanWaveEffect : MonoBehaviour
             }
         }
         
-        // Second pass: expand wave border to create thick band
+        // Second pass: calculate distance-based wave mask for all ocean pixels
         for (int y = 0; y < resolution; y++)
         {
             for (int x = 0; x < resolution; x++)
             {
                 int pixelIndex = y * resolution + x;
                 
-                // If this is a wave border pixel, expand it
-                if (isWaveBorder[pixelIndex])
+                // Only process ocean pixels
+                if (terrainOwner[pixelIndex] == oceanTerrainID)
                 {
-                    // Expand in all directions by waveMaskThickness
-                    for (int dy = -waveMaskThickness; dy <= waveMaskThickness; dy++)
+                    // Find minimum distance to any wave border
+                    float minDistance = float.MaxValue;
+                    
+                    // Search in a reasonable radius (waveMaskThickness * 2 for performance)
+                    int searchRadius = waveMaskThickness * 2;
+                    for (int dy = -searchRadius; dy <= searchRadius; dy++)
                     {
-                        for (int dx = -waveMaskThickness; dx <= waveMaskThickness; dx++)
+                        for (int dx = -searchRadius; dx <= searchRadius; dx++)
                         {
-                            int expandX = (x + dx + resolution) % resolution;
-                            int expandY = (y + dy + resolution) % resolution;
-                            int expandIndex = expandY * resolution + expandX;
+                            int searchX = (x + dx + resolution) % resolution;
+                            int searchY = (y + dy + resolution) % resolution;
+                            int searchIndex = searchY * resolution + searchX;
                             
-                            // Only expand into ocean pixels
-                            if (terrainOwner[expandIndex] == oceanTerrainID)
+                            // If we found a wave border, calculate distance
+                            if (isWaveBorder[searchIndex])
                             {
-                                pixels[expandIndex] = Color.white;
+                                float distance = Mathf.Sqrt(dx * dx + dy * dy);
+                                if (distance < minDistance)
+                                {
+                                    minDistance = distance;
+                                }
                             }
                         }
+                    }
+                    
+                    // If we found a border within range, set grayscale value
+                    if (minDistance <= waveMaskThickness)
+                    {
+                        // Normalize distance: 0 = at border, 1 = at max distance
+                        float normalizedDistance = minDistance / waveMaskThickness;
+                        // Invert so closer to coast = brighter
+                        float intensity = 1.0f - normalizedDistance;
+                        pixels[pixelIndex] = new Color(intensity, intensity, intensity, 1.0f);
                     }
                 }
             }

@@ -24,8 +24,8 @@ Shader "Custom/TerrainSplatMap12"
         _WaveMask ("Wave Mask", 2D) = "white" {}
         _WaveSpeed ("Wave Speed", Float) = 1.0
         _WaveAmplitude ("Wave Amplitude", Float) = 0.5
-        _WaveFrequency ("Wave Frequency", Float) = 1.0
-        _WaveWidth ("Wave Width", Float) = 0.1
+        _WaveFrequency ("Wave Frequency", Float) = 5.0
+        _WaveThreshold ("Wave Threshold", Range(0.5, 0.95)) = 0.9
     }
     SubShader
     {
@@ -63,7 +63,7 @@ Shader "Custom/TerrainSplatMap12"
             float _WaveSpeed;
             float _WaveAmplitude;
             float _WaveFrequency;
-            float _WaveWidth;
+            float _WaveThreshold;
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _SplatMap1_ST;
@@ -153,59 +153,39 @@ Shader "Custom/TerrainSplatMap12"
                 
                 // Combine lighting: (Ambient + Diffuse) * Albedo + Specular
                 half3 finalColor = (ambient + diffuse) * blendedColor.rgb + specular;
-
-                // --- OLEAJE ---
-                float mask = SAMPLE_TEXTURE2D(_WaveMask, sampler_WaveMask, IN.uv).r;
-                if (mask > 0.1)
-                {
-                    // Calcular distancia desde la costa
-                    float distanceFromCoast = 0.0;
-                    float maxDistance = 20.0 / 1024.0; // Buscar hasta 20 píxeles
-                    
-                    // Buscar la distancia mínima a la costa
-                    for (float d = 1.0; d <= maxDistance; d += 1.0 / 1024.0) {
-                        bool foundCoast = false;
-                        
-                        // Buscar en todas las direcciones a esta distancia
-                        for (int i = 0; i < 8; i++) {
-                            float angle = (2.0 * 3.14159 * i) / 8.0;
-                            float2 direction = float2(cos(angle), sin(angle));
-                            float2 sampleUV = IN.uv + direction * d;
-                            
-                            // Verificar si este punto es costa (tierra)
-                            float4 splat1 = SAMPLE_TEXTURE2D(_SplatMap1, sampler_SplatMap1, sampleUV);
-                            float4 splat2 = SAMPLE_TEXTURE2D(_SplatMap2, sampler_SplatMap2, sampleUV);
-                            float4 splat3 = SAMPLE_TEXTURE2D(_SplatMap3, sampler_SplatMap3, sampleUV);
-                            float landWeight = splat1.r + splat1.g + splat1.b + splat1.a
-                                             + splat2.r + splat2.g + splat2.b + splat2.a
-                                             + splat3.r + splat3.g + splat3.a;
-                            
-                            if (landWeight > 0.1) {
-                                distanceFromCoast = d;
-                                foundCoast = true;
-                                break;
-                            }
-                        }
-                        
-                        if (foundCoast) break;
-                    
-                    // Crear línea de onda que se propaga desde la costa
-                    float waveSpeed = 0.5; // Velocidad de propagación
-                    float waveWidth = 2.0 / 1024.0; // Ancho de la línea
-                    
-                    // La línea se mueve desde la costa hacia afuera
-                    float waveFront = _Time.y * waveSpeed;
-                    
-                    // Si estamos en la línea de onda actual
-                    if (abs(distanceFromCoast - waveFront) < waveWidth) {
-                        float waveIntensity = 1.0 - abs(distanceFromCoast - waveFront) / waveWidth;
-                        waveIntensity = smoothstep(0.0, 1.0, waveIntensity);
-                        
-                        // Aplicar la línea blanca
-                        finalColor = lerp(finalColor, float3(1.0, 1.0, 1.0), waveIntensity * 0.8);
-                    }
-                }
-                   return half4(finalColor, 1.0);
+                
+                
+                // --- OLEAJE (BRANCHLESS) ---
+                float waveMask = SAMPLE_TEXTURE2D(_WaveMask, sampler_WaveMask, IN.uv).r;
+                
+                // Branchless wave mask check: smoothstep para crear una transición suave
+                float waveMaskActive = smoothstep(0.01, 0.05, waveMask) * smoothstep(0.998, 0.95, waveMask);
+                
+                // Múltiples ondas finas que se propagan hacia afuera
+                float wavePhase = _Time.y * _WaveSpeed * 0.5;
+                
+                // Usar seno para crear crestas (hacia adentro)
+                float wavePattern = sin(wavePhase * _WaveFrequency - waveMask * 20.0);
+                
+                // Branchless crest detection: smoothstep para detectar crestas
+                float lineIntensity = smoothstep(_WaveThreshold, _WaveThreshold + 0.1, wavePattern);
+                lineIntensity = smoothstep(0.0, 1.0, lineIntensity);
+                
+                // Branchless wave line threshold
+                float waveLine = smoothstep(0.01, 0.05, lineIntensity);
+                
+                // Formation intensity
+                float formationIntensity = smoothstep(0.0, 0.3, waveMask);
+                
+                // Final blend factor (branchless)
+                float blendFactor = waveLine * _WaveAmplitude * formationIntensity * waveMaskActive;
+                blendFactor = saturate(blendFactor);
+                
+                // Apply wave effect
+                float3 waveLineColor = float3(1.0, 1.0, 1.0);
+                finalColor = lerp(finalColor, waveLineColor, blendFactor);
+                
+                return half4(finalColor, 1.0);
             }
             ENDHLSL
         }
