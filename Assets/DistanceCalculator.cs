@@ -156,7 +156,7 @@ public class DistanceCalculator : MonoBehaviour
         var startTriangle = icoSphere.triangleDataList[startTriangleId];
         
         // Find the intersection of vertex-adjacent triangles (the triangles that share the vertex)
-        var sharedTriangles = fromTriangle.adjacentTriangles.Intersect(toTriangle.adjacentTriangles);
+        var sharedTriangles = fromTriangle.adjacentTriangles.Intersect(toTriangle.vertexAdjacentTriangles);
 
         // Check if all triangles sharing this vertex are valid
         foreach (int triangleId in sharedTriangles)
