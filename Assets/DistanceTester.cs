@@ -34,6 +34,7 @@ public class DistanceTester : MonoBehaviour
     
     public TerrainFilter terrainFilter = TerrainFilter.Both;
     public bool sameCountryOnly = false;
+    public bool strictVertexAdjacency = false; // If true, all triangles sharing a vertex must be valid
     
     private int selectedStartTriangle = -1;
     private int selectedEndTriangle = -1;
@@ -44,7 +45,7 @@ public class DistanceTester : MonoBehaviour
     
     // GUI settings
     private bool showGUI = true;
-    private Rect guiRect = new Rect(Screen.width - 250, 10, 240, 150);
+    private Rect guiRect = new Rect(Screen.width - 250, 10, 240, 180);
     
     void Start()
     {
@@ -143,6 +144,20 @@ public class DistanceTester : MonoBehaviour
         }
         GUILayout.EndHorizontal();
         
+        // Strict vertex adjacency filter
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Vertex:", GUILayout.Width(80));
+        var newStrictVertexAdjacency = GUILayout.Toggle(strictVertexAdjacency, "Strict Vertex Adjacency", GUILayout.Width(150));
+        if (newStrictVertexAdjacency != strictVertexAdjacency)
+        {
+            strictVertexAdjacency = newStrictVertexAdjacency;
+            if (distanceCalculator != null)
+            {
+                distanceCalculator.SetStrictVertexAdjacency(strictVertexAdjacency);
+            }
+        }
+        GUILayout.EndHorizontal();
+        
         // Clear button
         if (GUILayout.Button("Clear Selection"))
         {
@@ -203,6 +218,7 @@ public class DistanceTester : MonoBehaviour
         // Sync filters with DistanceCalculator
         distanceCalculator.SetTerrainFilter((DistanceCalculator.TerrainFilter)terrainFilter);
         distanceCalculator.SetCountryFilter(sameCountryOnly);
+        distanceCalculator.SetStrictVertexAdjacency(strictVertexAdjacency);
         
         // Calculate distance
         List<int> path;

@@ -23,6 +23,7 @@ public class DistanceCalculator : MonoBehaviour
     
     public TerrainFilter terrainFilter = TerrainFilter.Both;
     public bool sameCountryOnly = false;
+    public bool strictVertexAdjacency = false; // If true, all triangles sharing a vertex must be valid
     
     private IcoSphere icoSphere;
     private List<int> currentPath = new List<int>();
@@ -93,6 +94,12 @@ public class DistanceCalculator : MonoBehaviour
             {
                 if (!visited.Contains(neighbor) && IsTriangleValidForPath(neighbor, startTriangleId))
                 {
+                    // Check strict vertex adjacency for the transition from current to neighbor
+                    if (strictVertexAdjacency && !checkStrictVertexAdjacency(current, neighbor, startTriangleId))
+                    {
+                        continue; // Skip this neighbor but don't mark as visited
+                    }
+                    
                     visited.Add(neighbor);
                     distance[neighbor] = distance[current] + 1;
                     previous[neighbor] = current;
@@ -135,6 +142,38 @@ public class DistanceCalculator : MonoBehaviour
         
         // Check country filter
         if (sameCountryOnly && triangle.country != startTriangle.country) return false;
+        
+        return true;
+    }
+    
+    /// <summary>
+    /// Checks if all triangles sharing the vertex between two triangles are valid
+    /// </summary>
+    private bool checkStrictVertexAdjacency(int fromTriangleId, int toTriangleId, int startTriangleId)
+    {
+        var fromTriangle = icoSphere.triangleDataList[fromTriangleId];
+        var toTriangle = icoSphere.triangleDataList[toTriangleId];
+        var startTriangle = icoSphere.triangleDataList[startTriangleId];
+        
+        // Find the intersection of vertex-adjacent triangles (the triangles that share the vertex)
+        var sharedTriangles = fromTriangle.adjacentTriangles.Intersect(toTriangle.adjacentTriangles);
+
+        // Check if all triangles sharing this vertex are valid
+        foreach (int triangleId in sharedTriangles)
+        {
+            Debug.Log($"Checking triangle {triangleId}");
+            if (triangleId < 0 || triangleId >= icoSphere.triangleDataList.Count) continue;
+            
+            var triangle = icoSphere.triangleDataList[triangleId];
+            
+            // Check terrain filter
+            if (!IsTerrainValid(triangle.terrainType)) return false;
+            
+            // Check country filter
+            if (sameCountryOnly && triangle.country != startTriangle.country) {
+                return false;
+            }
+        }
         
         return true;
     }
@@ -228,5 +267,13 @@ public class DistanceCalculator : MonoBehaviour
     public void SetCountryFilter(bool sameCountryOnly)
     {
         this.sameCountryOnly = sameCountryOnly;
+    }
+    
+    /// <summary>
+    /// Sets the strict vertex adjacency filter for pathfinding
+    /// </summary>
+    public void SetStrictVertexAdjacency(bool strictVertexAdjacency)
+    {
+        this.strictVertexAdjacency = strictVertexAdjacency;
     }
 } 
