@@ -18,6 +18,10 @@ public class TriangleData
     [System.NonSerialized] // Don't serialize HashSet directly
     public HashSet<int> adjacentTriangles = new();
 
+    // Adjacent triangles (sharing a vertex) - using HashSet for performance and uniqueness
+    [System.NonSerialized] // Don't serialize HashSet directly
+    public HashSet<int> vertexAdjacentTriangles = new();
+
     // Convert a Vector3 point on a sphere to latitude and longitude
     public static (float latitude, float longitude) Vector3ToLatLon(Vector3 point)
     {
@@ -127,6 +131,7 @@ public class TriangleData
                $"{lat:F2}°, {lon:F2}°\n" +
                $"Sides: {ab:F2}, {bc:F2}, {ca:F2}\n" +
                $"{countryInfo}\n" +
-               $"Adjacent Triangles: {string.Join(", ", adjacentTriangles)}";
+               $"Edge Adjacent: {string.Join(", ", adjacentTriangles)}\n" +
+               $"Vertex Adjacent: {string.Join(", ", vertexAdjacentTriangles)}";
     }
 }

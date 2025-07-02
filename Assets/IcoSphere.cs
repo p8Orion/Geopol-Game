@@ -18,11 +18,11 @@ public class IcoSphere : MonoBehaviour
     public float borderNoiseScale = 0.25f; // The scale of the border noise. Smaller values create larger patches.
     public int borderDepth = 5; // How many pixels deep the border effect should be.
     public float tilingScale = 30.0f;
-    public int terrainCount = 11; // Number of terrain types to use (max 12)
+    public int terrainCount = 12; // Number of terrain types to use (max 12)
     public bool enableBlur = true; // Whether to apply blur to splat maps
     public int blurRadius = 1; // Radius of the blur (1 = 3x3, 2 = 5x5, etc.)
     [Header("Ocean Border Settings")]
-    public int oceanTerrainID = 10; // ID of the ocean terrain type (default: 10 for KoppenTerrainMapper.TerrainType.Ocean)
+    public List<int> oceanTerrainIDs = new List<int> { 11, 10 }; // IDs of ocean terrain types (default: 10 for TerrainTypeEnum.Ocean)
     public bool excludeOceanFromBorderNoise = false; // Whether to exclude ocean borders from noise generation
     public bool excludeOceanFromBorderBlur = true; // Whether to exclude ocean borders from blur generation
     [Header("Coastal Variation Settings")]
@@ -113,13 +113,13 @@ public class IcoSphere : MonoBehaviour
     // Helper method to check if a terrain type is ocean for noise exclusion
     private bool IsOceanTerrainForNoise(int terrainType)
     {
-        return excludeOceanFromBorderNoise && terrainType == oceanTerrainID;
+        return excludeOceanFromBorderNoise && oceanTerrainIDs.Contains(terrainType);
     }
     
     // Helper method to check if a terrain type is ocean for blur exclusion
     private bool IsOceanTerrainForBlur(int terrainType)
     {
-        return excludeOceanFromBorderBlur && terrainType == oceanTerrainID;
+        return excludeOceanFromBorderBlur && oceanTerrainIDs.Contains(terrainType);
     }
 
     // Backward compatibility property for existing code
@@ -286,6 +286,12 @@ public class IcoSphere : MonoBehaviour
     /// </summary>
     private void InitializeTerrainTypes()
     {
+        // If terrainTypes is empty, initialize it with default terrain types in enum order
+        if (terrainTypes.Count == 0)
+        {
+            InitializeDefaultTerrainTypes();
+        }
+        
         for (int i = 0; i < terrainTypes.Count; i++)
         {
             var terrainType = terrainTypes[i];
@@ -305,6 +311,29 @@ public class IcoSphere : MonoBehaviour
         }
         
         Debug.Log($"Initialized {terrainTypes.Count} terrain types");
+    }
+    
+    /// <summary>
+    /// Initializes the terrainTypes list with default terrain types in the correct enum order
+    /// </summary>
+    private void InitializeDefaultTerrainTypes()
+    {
+        terrainTypes.Clear();
+        
+        // Create terrain types in the same order as TerrainTypeEnum
+        terrainTypes.Add(new TerrainType("Unknown", null, Color.gray, TerrainTypeEnum.Unknown));
+        terrainTypes.Add(new TerrainType("Bosque Tropical", null, Color.green, TerrainTypeEnum.BosqueTropical));
+        terrainTypes.Add(new TerrainType("Sabana", null, Color.yellow, TerrainTypeEnum.Sabana));
+        terrainTypes.Add(new TerrainType("Desierto", null, Color.brown, TerrainTypeEnum.Desierto));
+        terrainTypes.Add(new TerrainType("Estepa", null, Color.orange, TerrainTypeEnum.Estepa));
+        terrainTypes.Add(new TerrainType("Bosque Templado", null, Color.cyan, TerrainTypeEnum.BosqueTemplado));
+        terrainTypes.Add(new TerrainType("Llanura", null, Color.magenta, TerrainTypeEnum.Llanura));
+        terrainTypes.Add(new TerrainType("Bosque Boreal", null, Color.blue, TerrainTypeEnum.BosqueBoreal));
+        terrainTypes.Add(new TerrainType("Tundra", null, Color.white, TerrainTypeEnum.Tundra));
+        terrainTypes.Add(new TerrainType("Hielo", null, Color.white, TerrainTypeEnum.Hielo));
+        terrainTypes.Add(new TerrainType("Ocean", null, Color.blue, TerrainTypeEnum.Ocean));
+        
+        Debug.Log("Initialized default terrain types in enum order");
     }
     
     /// <summary>
@@ -753,11 +782,14 @@ public class IcoSphere : MonoBehaviour
         triangleDataList.Add(triangle);
     }
 
-    // Efficiently fill adjacentTriangles for each TriangleData
+    // Efficiently fill adjacentTriangles and vertexAdjacentTriangles for each TriangleData
     void CalculateAdjacency(MeshData data)
     {
         // Map from edge (min,max) to triangle indices
         var edgeToTriangles = new Dictionary<(int,int), List<int>>();
+        // Map from vertex index to triangle indices
+        var vertexToTriangles = new Dictionary<int, List<int>>();
+        
         // Build a list of all triangles with their indices
         var triangleIndices = new List<(int a, int b, int c)>();
         foreach (var tri in triangleDataList)
@@ -767,28 +799,54 @@ public class IcoSphere : MonoBehaviour
             int i3 = data.uniqueVertices.IndexOf(tri.c);
             triangleIndices.Add((i1, i2, i3));
         }
-        // Fill edgeToTriangles
+        
+        // Fill edgeToTriangles and vertexToTriangles
         for (int t = 0; t < triangleIndices.Count; t++)
         {
             var (a, b, c) = triangleIndices[t];
+            
+            // Add edges
             foreach (var edge in new[]{ (Mathf.Min(a,b), Mathf.Max(a,b)), (Mathf.Min(b,c), Mathf.Max(b,c)), (Mathf.Min(c,a), Mathf.Max(c,a)) })
             {
                 if (!edgeToTriangles.ContainsKey(edge)) edgeToTriangles[edge] = new List<int>();
                 edgeToTriangles[edge].Add(t);
             }
+            
+            // Add vertices
+            foreach (var vertex in new[]{ a, b, c })
+            {
+                if (!vertexToTriangles.ContainsKey(vertex)) vertexToTriangles[vertex] = new List<int>();
+                vertexToTriangles[vertex].Add(t);
+            }
         }
-        // Assign adjacents
+        
+        // Assign both edge and vertex adjacents
         for (int t = 0; t < triangleIndices.Count; t++)
         {
             var (a, b, c) = triangleIndices[t];
             var triData = triangleDataList[t];
+            
+            // Clear existing adjacency data
             triData.adjacentTriangles.Clear();
+            triData.vertexAdjacentTriangles.Clear();
+            
+            // Calculate edge adjacency (triangles sharing an edge)
             foreach (var edge in new[]{ (Mathf.Min(a,b), Mathf.Max(a,b)), (Mathf.Min(b,c), Mathf.Max(b,c)), (Mathf.Min(c,a), Mathf.Max(c,a)) })
             {
                 foreach (var neighbor in edgeToTriangles[edge])
                 {
                     if (neighbor != t)
                         triData.adjacentTriangles.Add(neighbor);
+                }
+            }
+            
+            // Calculate vertex adjacency (triangles sharing any vertex)
+            foreach (var vertex in new[]{ a, b, c })
+            {
+                foreach (var neighbor in vertexToTriangles[vertex])
+                {
+                    if (neighbor != t)
+                        triData.vertexAdjacentTriangles.Add(neighbor);
                 }
             }
         }
@@ -1083,9 +1141,9 @@ public class IcoSphere : MonoBehaviour
         Debug.Log($"3 splat maps generated{(enableBlur ? $" and blurred (radius: {blurRadius})" : "")}: {splatMapResolution}x{splatMapResolution}");
         
         // Update ocean wave effect with the new terrain data
-        if (oceanWaveEffect != null)
+        if (oceanWaveEffect != null && oceanTerrainIDs.Count > 0)
         {
-            oceanWaveEffect.UpdateWaveMask(terrainOwner, splatMapResolution, oceanTerrainID);
+            oceanWaveEffect.UpdateWaveMask(terrainOwner, splatMapResolution, oceanTerrainIDs[0]); // Use first ocean ID for now
         }
     }
     

@@ -22,7 +22,7 @@ public class BorderManager : MonoBehaviour
     
     void Awake()
     {
-        Debug.Log("=== BorderManager Awake() Start ===");
+        //Debug.Log("=== BorderManager Awake() Start ===");
         
         icoSphere = GetComponent<IcoSphere>();
         if (icoSphere == null)
@@ -53,7 +53,7 @@ public class BorderManager : MonoBehaviour
             if (borderShader != null)
             {
                 baseBorderMaterial = new Material(borderShader);
-                Debug.Log("BorderManager: Created base border material");
+                //Debug.Log("BorderManager: Created base border material");
             }
             else
             {
@@ -62,7 +62,7 @@ public class BorderManager : MonoBehaviour
             }
         }
         
-        Debug.Log("=== BorderManager Awake() End ===");
+        //Debug.Log("=== BorderManager Awake() End ===");
     }
     
     /// <summary>
@@ -70,7 +70,7 @@ public class BorderManager : MonoBehaviour
     /// </summary>
     public void GenerateAllBorders()
     {
-        Debug.Log("=== BorderManager GenerateAllBorders() Start ===");
+        //Debug.Log("=== BorderManager GenerateAllBorders() Start ===");
         
         if (icoSphere == null || icoSphere.triangleDataList == null)
         {
@@ -78,7 +78,7 @@ public class BorderManager : MonoBehaviour
             return;
         }
         
-        Debug.Log($"BorderManager: Found {icoSphere.triangleDataList.Count} triangles");
+        //Debug.Log($"BorderManager: Found {icoSphere.triangleDataList.Count} triangles");
         
         // Clear existing borders
         ClearAllBorders();
@@ -86,7 +86,7 @@ public class BorderManager : MonoBehaviour
         // Find all unique country pairs that share borders
         var borderPairs = FindBorderPairs();
         
-        Debug.Log($"BorderManager: Found {borderPairs.Count} unique border pairs");
+        //Debug.Log($"BorderManager: Found {borderPairs.Count} unique border pairs");
         
         if (borderPairs.Count == 0)
         {
@@ -100,8 +100,8 @@ public class BorderManager : MonoBehaviour
             CreateBorderSegment(pair.Item1, pair.Item2);
         }
         
-        Debug.Log($"BorderManager: Created {borderSegments.Count} border segments");
-        Debug.Log("=== BorderManager GenerateAllBorders() End ===");
+        ///Debug.Log($"BorderManager: Created {borderSegments.Count} border segments");
+        //Debug.Log("=== BorderManager GenerateAllBorders() End ===");
     }
     
     /// <summary>
@@ -112,7 +112,7 @@ public class BorderManager : MonoBehaviour
         var pairs = new Dictionary<string, (Country, Country)>();
         var triangleDataList = icoSphere.triangleDataList;
         
-        Debug.Log($"BorderManager: Searching for border pairs in {triangleDataList.Count} triangles");
+        //Debug.Log($"BorderManager: Searching for border pairs in {triangleDataList.Count} triangles");
         
         for (int i = 0; i < triangleDataList.Count; i++)
         {
@@ -131,14 +131,14 @@ public class BorderManager : MonoBehaviour
                         if (!pairs.ContainsKey(key))
                         {
                             pairs[key] = (ourTriangle.country, neighborTriangle.country);
-                            Debug.Log($"BorderManager: Found border pair: {ourTriangle.country.name} - {neighborTriangle.country.name}");
+                            //Debug.Log($"BorderManager: Found border pair: {ourTriangle.country.name} - {neighborTriangle.country.name}");
                         }
                     }
                 }
             }
         }
         
-        Debug.Log($"BorderManager: Total unique border pairs found: {pairs.Count}");
+        //Debug.Log($"BorderManager: Total unique border pairs found: {pairs.Count}");
         
         // Convert to list
         return pairs.Values.ToList();
@@ -178,7 +178,7 @@ public class BorderManager : MonoBehaviour
         borderSegments[key] = segment;
         if (showDebugInfo)
         {
-            Debug.Log($"BorderManager: Created border segment {key}");
+            //Debug.Log($"BorderManager: Created border segment {key}");
         }
     }
     
@@ -253,7 +253,7 @@ public class BorderManager : MonoBehaviour
             }
         }
         
-        Debug.Log($"[BORDER] Total de edges únicos encontrados: {sharedEdges.Count}");
+        //Debug.Log($"[BORDER] Total de edges únicos encontrados: {sharedEdges.Count}");
         
         if (sharedEdges.Count == 0)
         {
@@ -271,7 +271,7 @@ public class BorderManager : MonoBehaviour
         segment.UpdateMesh(curvesWithOrientation);
         if (showDebugInfo)
         {
-            Debug.Log($"BorderManager: Generated geometry for {segment.GetKey()} with {sharedEdges.Count} edges");
+            //Debug.Log($"BorderManager: Generated geometry for {segment.GetKey()} with {sharedEdges.Count} edges");
         }
     }
     
@@ -576,7 +576,7 @@ public class BorderManager : MonoBehaviour
                 {
                     startingPoints.Add(startPoint);
                     uniqueChains.Add(chain);
-                    Debug.Log($"[BORDER] Cadena única agregada, empieza en: {startPoint}");
+                    //Debug.Log($"[BORDER] Cadena única agregada, empieza en: {startPoint}");
                 }
                 else
                 {
@@ -585,7 +585,7 @@ public class BorderManager : MonoBehaviour
             }
         }
         
-        Debug.Log($"[BORDER] Cadenas después de eliminar duplicados: {uniqueChains.Count}");
+        //Debug.Log($"[BORDER] Cadenas después de eliminar duplicados: {uniqueChains.Count}");
         
         // Crear el resultado final con las cadenas y sus triángulos de referencia
         var result = new List<(List<Vector3>, TriangleData, TriangleData)>();
@@ -608,7 +608,7 @@ public class BorderManager : MonoBehaviour
             }
         }
         
-        Debug.Log($"[BORDER] Cadenas generadas para esta frontera: {result.Count} (longitudes: {string.Join(", ", result.ConvertAll(c => c.Item1.Count))})");
+        //Debug.Log($"[BORDER] Cadenas generadas para esta frontera: {result.Count} (longitudes: {string.Join(", ", result.ConvertAll(c => c.Item1.Count))})");
         return result;
     }
     
@@ -821,7 +821,7 @@ public class BorderManager : MonoBehaviour
             GenerateBorderGeometry(segment);
         }
         
-        Debug.Log($"BorderManager: Regenerated {bordersToRegenerate.Count} borders for {country?.name}");
+        //Debug.Log($"BorderManager: Regenerated {bordersToRegenerate.Count} borders for {country?.name}");
     }
     
     /// <summary>
@@ -835,7 +835,7 @@ public class BorderManager : MonoBehaviour
         }
         borderSegments.Clear();
         
-        Debug.Log("BorderManager: Cleared all border segments");
+        //Debug.Log("BorderManager: Cleared all border segments");
     }
     
     /// <summary>
@@ -859,7 +859,7 @@ public class BorderManager : MonoBehaviour
     /// </summary>
     public void UpdateMesh(Mesh newMesh)
     {
-        Debug.Log("BorderManager: Updating mesh for all border segments");
+        //Debug.Log("BorderManager: Updating mesh for all border segments");
         
         // Regenerate all borders with the new mesh data
         GenerateAllBorders();

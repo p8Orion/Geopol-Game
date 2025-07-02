@@ -4,25 +4,9 @@ using UnityEngine;
 public class KoppenTerrainMapper : MonoBehaviour
 {
     public Texture2D koppenTexture;
-    private Dictionary<string, TerrainType> codeToTerrain;
+    private Dictionary<string, TerrainTypeEnum> codeToTerrain;
     private Dictionary<Color32, string> colorToCode;
     private const float colorTolerance = 25f;
-
-    public enum TerrainType
-    {
-        Unknown,
-        BosqueTropical,
-        Sabana,
-        Desierto,
-        Estepa,
-        BosqueTemplado,
-        Llanura,
-        BosqueBoreal,
-        Tundra,
-        Hielo,
-
-        Ocean
-    }
 
     public static KoppenTerrainMapper Instance
     {
@@ -58,50 +42,50 @@ public class KoppenTerrainMapper : MonoBehaviour
 
     void InitCodeMappings()
     {
-        codeToTerrain = new Dictionary<string, TerrainType>
+        codeToTerrain = new Dictionary<string, TerrainTypeEnum>
         {
             // Tropical
-            ["Af"] = TerrainType.BosqueTropical,
-            ["Am"] = TerrainType.BosqueTropical,
-            ["Aw"] = TerrainType.Sabana,
-            ["As"] = TerrainType.Sabana,
+            ["Af"] = TerrainTypeEnum.BosqueTropical,
+            ["Am"] = TerrainTypeEnum.BosqueTropical,
+            ["Aw"] = TerrainTypeEnum.Sabana,
+            ["As"] = TerrainTypeEnum.Sabana,
 
             // Árido
-            ["BWh"] = TerrainType.Desierto,
-            ["BWk"] = TerrainType.Desierto,
-            ["BSh"] = TerrainType.Estepa,
-            ["BSk"] = TerrainType.Estepa,
+            ["BWh"] = TerrainTypeEnum.Desierto,
+            ["BWk"] = TerrainTypeEnum.Desierto,
+            ["BSh"] = TerrainTypeEnum.Estepa,
+            ["BSk"] = TerrainTypeEnum.Estepa,
 
             // Templado (Mediterráneo + Húmedo + Subhúmedo)
-            ["Csa"] = TerrainType.BosqueTemplado,
-            ["Csb"] = TerrainType.BosqueTemplado,
-            ["Csc"] = TerrainType.BosqueTemplado,
-            ["Cwa"] = TerrainType.BosqueTemplado,
-            ["Cwb"] = TerrainType.Llanura,
-            ["Cwc"] = TerrainType.BosqueTemplado,
-            ["Cfa"] = TerrainType.Llanura,
-            ["Cfb"] = TerrainType.Llanura,
-            ["Cfc"] = TerrainType.Llanura,
+            ["Csa"] = TerrainTypeEnum.BosqueTemplado,
+            ["Csb"] = TerrainTypeEnum.BosqueTemplado,
+            ["Csc"] = TerrainTypeEnum.BosqueTemplado,
+            ["Cwa"] = TerrainTypeEnum.BosqueTemplado,
+            ["Cwb"] = TerrainTypeEnum.Llanura,
+            ["Cwc"] = TerrainTypeEnum.BosqueTemplado,
+            ["Cfa"] = TerrainTypeEnum.Llanura,
+            ["Cfb"] = TerrainTypeEnum.Llanura,
+            ["Cfc"] = TerrainTypeEnum.Llanura,
 
             // Continental
-            ["Dsa"] = TerrainType.BosqueBoreal,
-            ["Dsb"] = TerrainType.BosqueBoreal,
-            ["Dsc"] = TerrainType.BosqueBoreal,
-            ["Dsd"] = TerrainType.BosqueBoreal,
-            ["Dwa"] = TerrainType.BosqueBoreal,
-            ["Dwb"] = TerrainType.BosqueBoreal,
-            ["Dwc"] = TerrainType.BosqueBoreal,
-            ["Dwd"] = TerrainType.BosqueBoreal,
-            ["Dfa"] = TerrainType.BosqueBoreal,
-            ["Dfb"] = TerrainType.BosqueBoreal,
-            ["Dfc"] = TerrainType.BosqueBoreal,
-            ["Dfd"] = TerrainType.BosqueBoreal,
+            ["Dsa"] = TerrainTypeEnum.BosqueBoreal,
+            ["Dsb"] = TerrainTypeEnum.BosqueBoreal,
+            ["Dsc"] = TerrainTypeEnum.BosqueBoreal,
+            ["Dsd"] = TerrainTypeEnum.BosqueBoreal,
+            ["Dwa"] = TerrainTypeEnum.BosqueBoreal,
+            ["Dwb"] = TerrainTypeEnum.BosqueBoreal,
+            ["Dwc"] = TerrainTypeEnum.BosqueBoreal,
+            ["Dwd"] = TerrainTypeEnum.BosqueBoreal,
+            ["Dfa"] = TerrainTypeEnum.BosqueBoreal,
+            ["Dfb"] = TerrainTypeEnum.BosqueBoreal,
+            ["Dfc"] = TerrainTypeEnum.BosqueBoreal,
+            ["Dfd"] = TerrainTypeEnum.BosqueBoreal,
 
             // Polar
-            ["ET"] = TerrainType.Tundra,
-            ["EF"] = TerrainType.Hielo,
+            ["ET"] = TerrainTypeEnum.Tundra,
+            ["EF"] = TerrainTypeEnum.Hielo,
 
-            ["Ocean"] = TerrainType.Ocean
+            ["Ocean"] = TerrainTypeEnum.Ocean
         };
     }
 
@@ -162,12 +146,12 @@ public class KoppenTerrainMapper : MonoBehaviour
         };
     }
 
-    public TerrainType GetTerrainFromLatLon(float lat, float lon, bool log = false)
+    public TerrainTypeEnum GetTerrainFromLatLon(float lat, float lon, bool log = false)
     {
         if (koppenTexture == null)
         {
             if (log) Debug.LogWarning("Falta la textura Köppen");
-            return TerrainType.Unknown;
+            return TerrainTypeEnum.Unknown;
         }
 
         float u = (lon + 180f) / 360f;
@@ -225,7 +209,7 @@ public class KoppenTerrainMapper : MonoBehaviour
         }
 
         if (log) Debug.Log("[Koppen] No match found, returning Unknown");
-        return TerrainType.Unknown;
+        return TerrainTypeEnum.Unknown;
     }
 
     private bool IsSimilarColor(Color a, Color32 b, float tolerance)

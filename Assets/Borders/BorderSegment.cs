@@ -211,7 +211,7 @@ public class BorderSegment
         borderMaterialA.SetFloat("_IsWarBorder", isWarBorder ? 1.0f : 0.0f);
         borderMaterialA.SetFloat("_IsPeaceTreaty", isPeaceTreaty ? 1.0f : 0.0f);
         
-        Debug.Log($"BorderSegment: Lado A - {countryA?.name ?? "Unclaimed"} usando color {colorA}");
+        //Debug.Log($"BorderSegment: Lado A - {countryA?.name ?? "Unclaimed"} usando color {colorA}");
 
         // --- Lado B ---
         borderObjectB = new GameObject($"Border_{countryB?.name ?? "Unclaimed"}_to_{countryA?.name ?? "Unclaimed"}");
@@ -299,7 +299,7 @@ public class BorderSegment
         borderMaterialB.SetFloat("_IsWarBorder", isWarBorder ? 1.0f : 0.0f);
         borderMaterialB.SetFloat("_IsPeaceTreaty", isPeaceTreaty ? 1.0f : 0.0f);
         
-        Debug.Log($"BorderSegment: Lado B - {countryB?.name ?? "Unclaimed"} usando color {colorB}");
+        //Debug.Log($"BorderSegment: Lado B - {countryB?.name ?? "Unclaimed"} usando color {colorB}");
     }
     
     /// <summary>

@@ -81,7 +81,7 @@ public class BorderDebugGizmos : MonoBehaviour
             return;
         }
         
-        Debug.Log($"BorderDebugGizmos: Dibujando border {border.GetKey()} con {chains.Count} chains");
+        //Debug.Log($"BorderDebugGizmos: Dibujando border {border.GetKey()} con {chains.Count} chains");
         
         // Color base para este border
         Color borderColor = Color.HSVToRGB((border.GetKey().GetHashCode() * 0.1f) % 1f, 0.8f, 1f);

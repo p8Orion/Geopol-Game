@@ -1490,6 +1490,83 @@ Transform:
   - {fileID: 430729447}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1209789516
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1209789519}
+  - component: {fileID: 1209789518}
+  - component: {fileID: 1209789517}
+  m_Layer: 0
+  m_Name: Distances
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1209789517
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1209789516}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 042477ca8e574fc44a9c6fe0c6451786, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  distanceCalculator: {fileID: 0}
+  idPicker: {fileID: 0}
+  distanceText: {fileID: 0}
+  startTriangleColor: {r: 0, g: 1, b: 0, a: 1}
+  endTriangleColor: {r: 1, g: 0, b: 0, a: 1}
+  selectionMarkerSize: 100
+  startMarkerMaterial: {fileID: 0}
+  endMarkerMaterial: {fileID: 0}
+  showPath: 1
+  pathColor: {r: 1, g: 0, b: 0, a: 1}
+  pathWidth: 20
+  pathHeight: 50
+  terrainFilter: 0
+  sameCountryOnly: 0
+--- !u!114 &1209789518
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1209789516}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 94df45f92f25cea43b8d0d40a65dbd19, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  showPath: 1
+  pathColor: {r: 1, g: 0, b: 0, a: 1}
+  showPathInfo: 1
+  showTriangleLabels: 1
+  terrainFilter: 0
+  sameCountryOnly: 0
+--- !u!4 &1209789519
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1209789516}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 2122.1787, y: -5640.888, z: -3931.497}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1519758108
 GameObject:
   m_ObjectHideFlags: 0
@@ -1530,46 +1607,57 @@ MonoBehaviour:
     material: {fileID: 2100000, guid: 09367973d3c4ae5448769b8d8e5a6124, type: 2}
     previewColor: {r: 1, g: 0.34606776, b: 0, a: 1}
     id: 0
+    terrainType: 0
   - name: Bosque Tropical
     material: {fileID: 2100000, guid: 2cd9bbf05500d2046b8f1d2190710745, type: 2}
     previewColor: {r: 0.33304477, g: 0.5754717, b: 0.26330546, a: 1}
     id: 1
+    terrainType: 0
   - name: Sabana
     material: {fileID: 2100000, guid: 9300ea8463820074cbddf384ad55b65b, type: 2}
     previewColor: {r: 0.3914342, g: 0.7264151, b: 0.19530971, a: 1}
     id: 2
+    terrainType: 0
   - name: Desierto
     material: {fileID: 2100000, guid: 78c32847285e0db4ea0da6c2ed9204ec, type: 2}
     previewColor: {r: 1, g: 0.85578734, b: 0.33490568, a: 1}
     id: 3
+    terrainType: 0
   - name: Estepa
     material: {fileID: 2100000, guid: a88bc5657c99b6343addaa50af041fcc, type: 2}
     previewColor: {r: 0.8113208, g: 0.7669729, b: 0.508989, a: 1}
     id: 4
+    terrainType: 0
   - name: Bosque Templado
     material: {fileID: 2100000, guid: 9a8fd98cd4e0a8b41b35f95b4c283065, type: 2}
     previewColor: {r: 0.055545326, g: 0.4339623, b: 0.030704875, a: 1}
     id: 5
+    terrainType: 0
   - name: Llanura
     material: {fileID: 2100000, guid: 9300ea8463820074cbddf384ad55b65b, type: 2}
     previewColor: {r: 0.75816774, g: 0.8867924, b: 0.47267708, a: 1}
     id: 6
+    terrainType: 0
   - name: Bosque Boreal
     material: {fileID: 2100000, guid: 9a8fd98cd4e0a8b41b35f95b4c283065, type: 2}
     previewColor: {r: 0.13363299, g: 0.7264151, b: 0.30164373, a: 1}
     id: 7
+    terrainType: 0
   - name: Tundra
     material: {fileID: 2100000, guid: e572344a3a6bc3b45ba1a9cc44448427, type: 2}
     previewColor: {r: 0.34060165, g: 0.8113208, b: 0.5864716, a: 1}
     id: 8
+    terrainType: 0
   - name: Hielo
     material: {fileID: 2100000, guid: fdd9f31b72ab96b42af5a5d7d9c18fc8, type: 2}
     previewColor: {r: 0, g: 0.91935134, b: 1, a: 1}
     id: 9
+    terrainType: 0
   - name: "Oc\xE9ano"
     material: {fileID: 2100000, guid: e2839adb35ff83444b2a51b5c64ccff0, type: 2}
     previewColor: {r: 0, g: 0.1187284, b: 1, a: 1}
     id: 10
+    terrainType: 0
   splatMapResolution: 2048
   borderNoiseStrength: 0.4
   borderNoiseScale: 0.25
@@ -1578,7 +1666,7 @@ MonoBehaviour:
   terrainCount: 11
   enableBlur: 1
   blurRadius: 1
-  oceanTerrainID: 10
+  oceanTerrainIDs: 0b0000000a000000
   excludeOceanFromBorderNoise: 0
   excludeOceanFromBorderBlur: 1
   enableCoastalVariation: 1
@@ -1927,3 +2015,4 @@ SceneRoots:
   - {fileID: 174647918}
   - {fileID: 721677777}
   - {fileID: 860816945}
+  - {fileID: 1209789519}
