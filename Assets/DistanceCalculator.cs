@@ -158,24 +158,36 @@ public class DistanceCalculator : MonoBehaviour
         // Find the intersection of vertex-adjacent triangles (the triangles that share the vertex)
         var sharedTriangles = fromTriangle.adjacentTriangles.Intersect(toTriangle.vertexAdjacentTriangles);
 
-        // Check if all triangles sharing this vertex are valid
+        // Check if majority of triangles sharing this vertex are valid
+        int validCount = 0;
+        int totalCount = 0;
+        
         foreach (int triangleId in sharedTriangles)
         {
             Debug.Log($"Checking triangle {triangleId}");
             if (triangleId < 0 || triangleId >= icoSphere.triangleDataList.Count) continue;
             
+            totalCount++;
             var triangle = icoSphere.triangleDataList[triangleId];
             
+            bool isValid = true;
+            
             // Check terrain filter
-            if (!IsTerrainValid(triangle.terrainType)) return false;
+            if (!IsTerrainValid(triangle.terrainType)) isValid = false;
             
             // Check country filter
             if (sameCountryOnly && triangle.country != startTriangle.country) {
-                return false;
+                isValid = false;
             }
+            
+            if (isValid) validCount++;
         }
         
-        return true;
+        // If only 1 shared triangle, it must be valid
+        if (totalCount == 1) return validCount == 1;
+        
+        // For multiple triangles, majority must be valid (at least half)
+        return validCount >= (totalCount + 1) / 2;
     }
     
     /// <summary>
