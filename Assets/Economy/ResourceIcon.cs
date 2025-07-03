@@ -71,8 +71,8 @@ public class ResourceIcon : MonoBehaviour
         }
         else if (!useBillboard)
         {
-            // Flat on terrain - face up (Y axis)
-            transform.rotation = Quaternion.LookRotation(Vector3.up);
+            // Flat on terrain - rotate 90 degrees to lay flat
+            transform.rotation = Quaternion.Euler(90f, 0f, 0f);
         }
         
         // Bobbing animation (only if enabled)
@@ -226,7 +226,7 @@ public class ResourceIcon : MonoBehaviour
     {
         useBillboard = true; // Billboard
         scale = 250f; // 100 unidades
-        heightOffset = 50f; // Más alto
+        heightOffset = 150f; // Más alto
     }
     
     public void DestroyIcon()
