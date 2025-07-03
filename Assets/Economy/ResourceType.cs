@@ -3,6 +3,9 @@ using UnityEngine;
 [System.Serializable]
 public enum ResourceType
 {
+    // Special
+    None,               // No resource
+    
     // Basic resources
     Cereal,             // 🌾
     Fish,               // 🐟
@@ -25,6 +28,7 @@ public static class ResourceTypeExtensions
     {
         return resourceType switch
         {
+            ResourceType.None => "❌",
             ResourceType.Cereal => "🌾",
             ResourceType.Fish => "🐟",
             ResourceType.FreshWater => "💧",
@@ -46,6 +50,7 @@ public static class ResourceTypeExtensions
     {
         return resourceType switch
         {
+            ResourceType.None => "No Resource",
             ResourceType.Cereal => "Cereal",
             ResourceType.Fish => "Fish",
             ResourceType.FreshWater => "Fresh Water",
@@ -67,6 +72,7 @@ public static class ResourceTypeExtensions
     {
         return resourceType switch
         {
+            ResourceType.None => false,
             ResourceType.Cereal => true,
             ResourceType.Fish => true,
             ResourceType.FreshWater => true,

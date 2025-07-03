@@ -11,7 +11,7 @@ public class TriangleData
     public float colorR, colorG, colorB;
     
     [Header("Natural Resources")]
-    public ResourceType naturalResource = ResourceType.Cereal;
+    public ResourceType naturalResource = ResourceType.None; // None means no resource assigned
 
     [Header("Country Assignment")]
     [NonSerialized]
@@ -120,6 +120,14 @@ public class TriangleData
     public Color GetCountryColor()
     {
         return country != null ? country.color : Color.gray;
+    }
+    
+    /// <summary>
+    /// Checks if this triangle has a resource assigned
+    /// </summary>
+    public bool HasResource()
+    {
+        return naturalResource != ResourceType.None;
     }
 
     public override string ToString()

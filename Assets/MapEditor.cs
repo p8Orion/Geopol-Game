@@ -41,7 +41,7 @@ public class MapEditor : MonoBehaviour
     public float countryPreviewAlpha = 0.5f; // Alpha for country preview overlay
     
     [Header("Resource Settings")]
-    public ResourceType selectedResourceType = ResourceType.Cereal;
+    public ResourceType selectedResourceType = ResourceType.None;
 
     [Header("Visual Feedback")]
     public bool showBrushPreview = true;
@@ -174,24 +174,14 @@ public class MapEditor : MonoBehaviour
 
     void OnRenderObject()
     {
-        if (!isEditing || currentPreviewMode != PreviewMode.Country) 
-        {
-            return;
-        }
+        if (!isEditing) return;
         if (!Application.isPlaying) return; // Only draw in play mode
         
+        if (icoSphere == null || icoSphere.triangleDataList == null) return;
+        
         // Draw country outlines in Game view during play mode
-        if (icoSphere != null && icoSphere.triangleDataList != null)
+        if (currentPreviewMode == PreviewMode.Country)
         {
-            int countryCount = 0;
-            foreach (var triangle in icoSphere.triangleDataList)
-            {
-                if (triangle.country != null)
-                {
-                    countryCount++;
-                }
-            }
-             
             // Draw triangle outlines for countries
             DrawCountryOutlines();
             
@@ -201,9 +191,11 @@ public class MapEditor : MonoBehaviour
                 DrawCountryPreviewOverlay();
             }
         }
-        else
+        
+        // Draw resource icons when in Resources mode or when showing resources
+        if (currentMode == EditorMode.Resources || (isEditing && currentPreviewMode == PreviewMode.TerrainType))
         {
-            Debug.Log("OnRenderObject: icoSphere or triangleDataList is null");
+            DrawResourceIcons();
         }
     }
     
@@ -488,7 +480,7 @@ public class MapEditor : MonoBehaviour
             GUI.backgroundColor = Color.gray;
             if (GUILayout.Button("None (Remove Resource)", GUILayout.ExpandWidth(true)))
             {
-                SelectResourceType(ResourceType.Cereal); // Will be handled as "remove" in painting logic
+                SelectResourceType(ResourceType.None);
             }
             GUI.backgroundColor = Color.white;
         }
@@ -595,13 +587,8 @@ public class MapEditor : MonoBehaviour
         }
         else if (newMode == EditorMode.Resources)
         {
-            // For resources mode, use simple preview material like terrain mode
-            if (previewMaterials.ContainsKey(EditorMode.Terrain))
-            {
-                renderer.material = previewMaterials[EditorMode.Terrain];
-                RefreshMeshColors();
-                UpdateStatus("Switched to Resources editing mode.");
-            }
+            // For resources mode, keep the current preview mode
+            UpdateStatus("Switched to Resources editing mode.");
         }
         else
         {
@@ -747,24 +734,8 @@ public class MapEditor : MonoBehaviour
         }
         else if (currentMode == EditorMode.Resources)
         {
-            // For resources mode, use the simple preview material like terrain mode
-            if (previewMaterials.ContainsKey(EditorMode.Terrain))
-            {
-                var previewMat = previewMaterials[EditorMode.Terrain];
-                if (renderer.material != previewMat)
-                {
-                    renderer.material = previewMat;
-                    // Refresh ALL mesh colors with preview colors when entering preview mode
-                    RefreshMeshColors();
-                    UpdateStatus("Switched to Resources preview mode.");
-                }
-            }
-            else
-            {
-                UpdateStatus("Error: No preview material for Resources mode.");
-                isPainting = false;
-                return;
-            }
+            // For resources mode, keep the current material and preview mode
+            UpdateStatus("Switched to Resources preview mode.");
         }
         else
         {
@@ -1488,6 +1459,7 @@ public class MapEditor : MonoBehaviour
         // Base colors for different resource types
         return resourceType switch
         {
+            ResourceType.None => Color.gray, // No resource
             ResourceType.Cereal => new Color(0.8f, 0.7f, 0.2f), // Yellow-brown
             ResourceType.Fish => new Color(0.2f, 0.5f, 0.8f),   // Blue
             ResourceType.FreshWater => new Color(0.2f, 0.7f, 1f), // Light blue
@@ -1571,6 +1543,68 @@ public class MapEditor : MonoBehaviour
                         GL.Vertex(triangle.b);
                         GL.Vertex(triangle.c);
                     }
+                }
+            }
+            
+            GL.End();
+        }
+    }
+    
+    void DrawResourceIcons()
+    {
+        if (icoSphere == null || icoSphere.triangleDataList == null) return;
+        
+        // Debug: Count resources
+        int resourceCount = 0;
+        foreach (var triangle in icoSphere.triangleDataList)
+        {
+            if (triangle.HasResource())
+            {
+                resourceCount++;
+            }
+        }
+        
+        if (resourceCount == 0) return; // No resources to draw
+        
+        // Create a simple unlit shader for drawing icons
+        if (lineMaterial == null)
+        {
+            CreateLineMaterial();
+        }
+        
+        if (lineMaterial != null)
+        {
+            lineMaterial.SetPass(0);
+            
+            // Draw small triangles for each resource
+            GL.Begin(GL.TRIANGLES);
+            
+            foreach (var triangle in icoSphere.triangleDataList)
+            {
+                // Draw icon for any resource that's not the default "no resource" state
+                if (triangle.HasResource())
+                {
+                    Vector3 center = triangle.GetCenter();
+                    Vector3 cameraPos = Camera.main.transform.position;
+                    Vector3 direction = (center - cameraPos).normalized;
+                    
+                    // Position icon slightly above the triangle
+                    Vector3 iconPos = center + Vector3.up * 0.1f;
+                    
+                    // Make icon face camera
+                    Vector3 right = Vector3.Cross(direction, Vector3.up).normalized;
+                    Vector3 up = Vector3.Cross(right, direction).normalized;
+                    
+                    float iconSize = 0.05f;
+                    
+                    // Draw a small colored circle for the resource
+                    Color resourceColor = GetResourcePreviewColor(triangle.naturalResource);
+                    GL.Color(resourceColor);
+                    
+                    // Draw a simple triangle as icon
+                    GL.Vertex(iconPos + right * iconSize);
+                    GL.Vertex(iconPos - right * iconSize + up * iconSize);
+                    GL.Vertex(iconPos - right * iconSize - up * iconSize);
                 }
             }
             
