@@ -13,7 +13,7 @@ public class IcoSphere : MonoBehaviour
     public List<TerrainType> terrainTypes = new();
 
     [Header("Splat Map Settings")]
-    public int splatMapResolution = 1024;
+    public int splatMapResolution = 2048; // Queda muy bien 4096 para prod.
     public float borderNoiseStrength = 0.4f; // How much to break up triangle borders. Higher values mean more mixing.
     public float borderNoiseScale = 0.25f; // The scale of the border noise. Smaller values create larger patches.
     public int borderDepth = 5; // How many pixels deep the border effect should be.
@@ -1143,7 +1143,7 @@ public class IcoSphere : MonoBehaviour
         // Update ocean wave effect with the new terrain data
         if (oceanWaveEffect != null && oceanTerrainIDs.Count > 0)
         {
-            oceanWaveEffect.UpdateWaveMask(terrainOwner, splatMapResolution, oceanTerrainIDs[0]); // Use first ocean ID for now
+            oceanWaveEffect.UpdateWaveMask(terrainOwner, splatMapResolution, oceanTerrainIDs);
         }
     }
     

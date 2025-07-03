@@ -1,11 +1,15 @@
 using UnityEngine;
+using UnityEngine.UI;
 using TMPro;
 
 public class ResourceIcon : MonoBehaviour
 {
     [Header("Components")]
-    private SpriteRenderer spriteRenderer;
+    private Image image;
+    private RectTransform rectTransform;
     private Camera mainCamera;
+    private RectTransform canvasRect;
+    private Canvas canvasMundo;
     
     [Header("Resource Data")]
     public Resource resource;
@@ -13,224 +17,202 @@ public class ResourceIcon : MonoBehaviour
     public TriangleData triangleData; // For natural resource display
     
     [Header("Visual Settings")]
-    public float heightOffset = 50f; // Much higher above the triangle
-    public float scale = 100f; // Target size in world units
+    public float size = 24f; // Size in UI units
     public Color tintColor = Color.white;
-    public bool useBillboard = true; // true = billboard, false = flat on terrain
+
+    [Header("Bobbing Animation")]
+public bool bobbingEnabled = false;
+public float bobbingSpeed = 2f;
+public float bobbingAmount = 5f;
+private float bobbingTime;
     
-    [Header("Animation")]
-    public bool enableBobbing = false; // Default to false for natural resources
-    public float bobSpeed = 2f;
-    public float bobHeight = 0.1f;
-    public float rotationSpeed = 30f;
-    
-    private Vector3 basePosition;
-    private float bobTime;
-    
-    void Start()
+    private void Start()
     {
-        // Get components
-        spriteRenderer = GetComponent<SpriteRenderer>();
-        mainCamera = Camera.main;
-        
-        // Set initial position
-        if (resource != null)
+        // Buscar o crear CanvasMundo
+        GameObject canvasGO = GameObject.Find("CanvasMundo");
+        if (canvasGO == null)
         {
-            // For effective resources, use resource position
-            basePosition = resource.GetCurrentPosition() + Vector3.up * heightOffset;
-            transform.position = basePosition;
-            resourceType = resource.type;
-        }
-        else if (triangleData != null)
-        {
-            // For natural resources, use triangle center
-            basePosition = triangleData.GetCenter() + Vector3.up * heightOffset;
-            transform.position = basePosition;
-        }
-        
-        // Create sprite renderer if it doesn't exist
-        if (spriteRenderer == null)
-        {
-            spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
-        }
-        
-        // Set sprite based on resource type
-        UpdateSprite();
-        
-        // Don't scale transform, create sprite with correct size
-        transform.localScale = Vector3.one;
-    }
-    
-    void Update()
-    {
-        // Billboard effect - only if enabled
-        if (useBillboard && mainCamera != null)
-        {
-            transform.LookAt(mainCamera.transform);
-            transform.Rotate(0, 180, 0); // Adjust orientation
-        }
-        else if (!useBillboard)
-        {
-            // Flat on terrain - rotate 90 degrees to lay flat
-            transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-        }
-        
-        // Bobbing animation (only if enabled)
-        if (enableBobbing)
-        {
-            bobTime += Time.deltaTime * bobSpeed;
-            float bobOffset = Mathf.Sin(bobTime) * bobHeight;
-            transform.position = basePosition + Vector3.up * bobOffset;
+            canvasGO = new GameObject("CanvasMundo");
+            canvasMundo = canvasGO.AddComponent<Canvas>();
+            canvasMundo.renderMode = RenderMode.ScreenSpaceOverlay;
+            RectTransform rect = canvasGO.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = Vector2.zero;
+            canvasGO.AddComponent<CanvasScaler>();
+            canvasGO.AddComponent<GraphicRaycaster>();
+            Debug.Log("ResourceIcon: CanvasMundo creado y configurado como Screen Space - Overlay.");
         }
         else
         {
-            // Keep position static at base position
-            transform.position = basePosition;
+            canvasMundo = canvasGO.GetComponent<Canvas>();
+        }
+        // Hacerse hijo del canvas
+        transform.SetParent(canvasMundo.transform, false);
+        canvasRect = canvasMundo.GetComponent<RectTransform>();
+
+        // Asegurarse de tener RectTransform
+        rectTransform = GetComponent<RectTransform>();
+        if (rectTransform == null)
+            rectTransform = gameObject.AddComponent<RectTransform>();
+
+        image = GetComponent<Image>();
+        if (image == null)
+            image = gameObject.AddComponent<Image>();
+        rectTransform.sizeDelta = new Vector2(size, size);
+        mainCamera = Camera.main;
+        UpdateSprite();
+    }
+
+    private void Update()
+    {
+        if (mainCamera == null || rectTransform == null || canvasRect == null) return;
+        
+        // Update bobbing animation
+        if (bobbingEnabled)
+        {
+            bobbingTime += Time.deltaTime * bobbingSpeed;
         }
         
-        // Rotation animation (only if billboard)
-        if (useBillboard)
+        Vector3 worldPos = triangleData != null
+            ? triangleData.GetCenter()
+            : (resource != null ? resource.GetCurrentPosition() : Vector3.zero);
+        Vector3 screenPos = mainCamera.WorldToScreenPoint(worldPos);
+        Vector2 anchoredPos;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            canvasRect, screenPos, null, out anchoredPos);
+        
+        // Apply bobbing offset only if enabled
+        if (bobbingEnabled)
         {
-            transform.Rotate(0, rotationSpeed * Time.deltaTime, 0);
+            float bobbingOffset = Mathf.Sin(bobbingTime) * bobbingAmount;
+            anchoredPos.y += bobbingOffset;
         }
+        
+        rectTransform.anchoredPosition = anchoredPos;
     }
-    
 
-    
-
-    
-    public void SetResource(Resource newResource)
-    {
-        resource = newResource;
-        if (resource != null)
-        {
-            resourceType = resource.type;
-            tintColor = resourceType.GetColor(); // Set color automatically
-            UpdateSprite();
-        }
-    }
-    
     public void SetTriangleData(TriangleData triangle)
     {
         triangleData = triangle;
         if (triangleData != null)
         {
             resourceType = triangleData.naturalResource;
-            tintColor = resourceType.GetColor(); // Set color automatically
+            tintColor = resourceType.GetColor();
             UpdateSprite();
+            ApplyNaturalResourceStyle();
         }
     }
-    
+
+    public void SetResource(Resource newResource)
+    {
+        resource = newResource;
+        if (resource != null)
+        {
+            resourceType = resource.type;
+            tintColor = resourceType.GetColor();
+            UpdateSprite();
+            ApplyRealResourceStyle();
+        }
+    }
+
     public void SetResourceType(ResourceType type)
     {
         resourceType = type;
-        tintColor = resourceType.GetColor(); // Set color automatically
+        tintColor = resourceType.GetColor();
         UpdateSprite();
     }
-    
+
     private void UpdateSprite()
     {
-        if (spriteRenderer == null) return;
-        
-        // Create a simple colored circle sprite
-        CreateSimpleSprite();
+        if (image == null) return;
+        string iconName = GetIconNameForResourceType(resourceType);
+        Sprite iconSprite = Resources.Load<Sprite>($"Icons/{iconName}");
+        if (iconSprite != null)
+        {
+            image.sprite = iconSprite;
+            image.color = tintColor;
+        }
+        else
+        {
+            CreateSimpleSprite();
+        }
     }
-    
+
+    private string GetIconNameForResourceType(ResourceType resourceType)
+    {
+        if (resourceType == ResourceType.None)
+            return "cardboard-box";
+        return resourceType.ToString();
+    }
+
     private void CreateSimpleSprite()
     {
-        // Create a simple white circle texture
-        int size = 64; // Fixed small size
+        int size = 64;
         Texture2D texture = new Texture2D(size, size);
-        
-        // Fill with transparent background
         Color[] pixels = new Color[size * size];
-        for (int i = 0; i < pixels.Length; i++)
-        {
-            pixels[i] = Color.clear;
-        }
-        
-        // Draw a circle in the center
+        for (int i = 0; i < pixels.Length; i++) pixels[i] = Color.clear;
         Vector2 center = new Vector2(size / 2f, size / 2f);
         float radius = size / 3f;
-        
         for (int x = 0; x < size; x++)
-        {
             for (int y = 0; y < size; y++)
-            {
-                float distance = Vector2.Distance(new Vector2(x, y), center);
-                if (distance <= radius)
-                {
+                if (Vector2.Distance(new Vector2(x, y), center) <= radius)
                     pixels[y * size + x] = tintColor;
-                }
-            }
-        }
-        
         texture.SetPixels(pixels);
         texture.Apply();
-        
-        // Create sprite from texture with size/scale pixels per unit (inverse relationship)
-        Sprite sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size / scale);
-        
-        // Set the sprite
-        spriteRenderer.sprite = sprite;
-        spriteRenderer.color = tintColor;
-        
-        // Make sure it's visible
-        spriteRenderer.enabled = true;
+        Sprite sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1f);
+        image.sprite = sprite;
+        image.color = tintColor;
     }
-    
-    public void SetPosition(Vector3 position)
-    {
-        basePosition = position + Vector3.up * heightOffset;
-    }
-    
+
     public void SetVisible(bool visible)
     {
         gameObject.SetActive(visible);
     }
-    
+
     public void SetTint(Color color)
     {
         tintColor = color;
-        TextMeshPro tmp = GetComponent<TextMeshPro>();
-        if (tmp != null)
+        if (image != null)
         {
-            tmp.color = tintColor;
+            image.color = tintColor;
         }
     }
-    
-    public void SetScale(float newScale)
+
+    public void SetSize(float newSize)
     {
-        scale = newScale;
-        transform.localScale = Vector3.one * scale;
+        size = newSize;
+        rectTransform.sizeDelta = new Vector2(size, size);
     }
-    
-    public void SetBobbing(bool enable)
-    {
-        enableBobbing = enable;
-    }
-    
-    public void SetBillboard(bool useBillboardMode)
-    {
-        useBillboard = useBillboardMode;
-    }
-    
-    public void SetNaturalResourceMode()
-    {
-        useBillboard = false; // No billboard
-        scale = 100f; // 50 unidades
-        heightOffset = 5f; // Un poco más arriba del terreno
-    }
-    
-    public void SetRealResourceMode()
-    {
-        useBillboard = true; // Billboard
-        scale = 250f; // 100 unidades
-        heightOffset = 150f; // Más alto
-    }
-    
+
     public void DestroyIcon()
     {
         Destroy(gameObject);
+    }
+
+    private void ApplyNaturalResourceStyle()
+    {
+        // Estilo para recursos naturales (fijos en el terreno)
+        if (image != null)
+        {
+            Color naturalColor = tintColor;
+            naturalColor.a = 0.6f; // Más transparente
+            naturalColor *= 0.7f; // Más apagado
+            image.color = naturalColor;
+        }
+        SetSize(size); // Un poco más pequeños
+    }
+
+    private void ApplyRealResourceStyle()
+    {
+        // Estilo para recursos reales (en movimiento)
+        if (image != null)
+        {
+            image.color = tintColor;
+        }
+        SetSize(size * 1.5f); // Un poco más grandes
+        bobbingEnabled = true; // Habilitar bobbing para recursos reales
     }
 } 

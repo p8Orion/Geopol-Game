@@ -1,14 +1,15 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class OceanWaveEffect : MonoBehaviour
 {
     [Header("Wave Settings")]
-    public float waveSpeed = 0.5f;
+    public float waveSpeed = 0.3f;
     public float waveAmplitude = 0.1f;
     public float waveFrequency = 10.0f;
-    public float waveWidth = 0.1f; // Ancho de la zona de oleaje
+    public float waveWidth = 0.2f; // Ancho de la zona de oleaje
     [Header("Wave Mask Settings")]
-    public int waveMaskThickness = 3; // Grosor de la banda de oleaje en píxeles
+    public int waveMaskThickness = 5; // Grosor de la banda de oleaje en píxeles
     
     [Header("References")]
     public IcoSphere icoSphere;
@@ -48,10 +49,10 @@ public class OceanWaveEffect : MonoBehaviour
         needsUpdate = true;
     }
 
-    public void UpdateWaveMask(int[] terrainOwner, int resolution, int oceanTerrainID)
+    public void UpdateWaveMask(int[] terrainOwner, int resolution, List<int> oceanTerrainIDs)
     {
         // Check if we need to update
-        if (!needsUpdate && resolution == lastMapResolution && oceanTerrainID == lastOceanTerrainID)
+        if (!needsUpdate && resolution == lastMapResolution && oceanTerrainIDs.Count > 0 && oceanTerrainIDs[0] == lastOceanTerrainID)
         {
             return;
         }
@@ -86,8 +87,8 @@ public class OceanWaveEffect : MonoBehaviour
                 int pixelIndex = y * resolution + x;
                 int currentTerrain = terrainOwner[pixelIndex];
                 
-                // If this pixel is ocean, check if it has non-ocean neighbors
-                if (currentTerrain == oceanTerrainID)
+                // If this pixel is ocean (any of the ocean terrain IDs), check if it has non-ocean neighbors
+                if (oceanTerrainIDs.Contains(currentTerrain))
                 {
                     bool hasNonOceanNeighbor = false;
                     
@@ -103,7 +104,7 @@ public class OceanWaveEffect : MonoBehaviour
                             int neighborY = (y + dy + resolution) % resolution;
                             int neighborIndex = neighborY * resolution + neighborX;
                             
-                            if (terrainOwner[neighborIndex] != oceanTerrainID)
+                            if (!oceanTerrainIDs.Contains(terrainOwner[neighborIndex]))
                             {
                                 hasNonOceanNeighbor = true;
                             }
@@ -126,8 +127,8 @@ public class OceanWaveEffect : MonoBehaviour
             {
                 int pixelIndex = y * resolution + x;
                 
-                // Only process ocean pixels
-                if (terrainOwner[pixelIndex] == oceanTerrainID)
+                // Only process ocean pixels (any of the ocean terrain IDs)
+                if (oceanTerrainIDs.Contains(terrainOwner[pixelIndex]))
                 {
                     // Find minimum distance to any wave border
                     float minDistance = float.MaxValue;
@@ -187,10 +188,10 @@ public class OceanWaveEffect : MonoBehaviour
 
         // Update cache
         lastMapResolution = resolution;
-        lastOceanTerrainID = oceanTerrainID;
+        lastOceanTerrainID = oceanTerrainIDs.Count > 0 ? oceanTerrainIDs[0] : -1;
         needsUpdate = false;
         
-        Debug.Log($"OceanWaveEffect: Generated wave mask for {resolution}x{resolution} map with ocean ID {oceanTerrainID}");
+        Debug.Log($"OceanWaveEffect: Generated wave mask for {resolution}x{resolution} map with {oceanTerrainIDs.Count} ocean IDs: [{string.Join(", ", oceanTerrainIDs)}]");
     }
 
     // Public method to force update

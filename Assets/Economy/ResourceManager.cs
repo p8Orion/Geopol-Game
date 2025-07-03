@@ -1,17 +1,20 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ResourceManager : MonoBehaviour
 {
     [Header("Resource Icon Prefab")]
     public GameObject resourceIconPrefab;
     
+    [Header("Canvas")]
+    public Canvas worldCanvas; // Assign CanvasMundo here
+    
     [Header("Active Resources")]
     public List<Resource> activeResources = new();
     
     [Header("Visual Settings")]
-    public float defaultHeightOffset = 0.5f;
-    public float defaultScale = 1f;
+    public float defaultSize = 1f;
     public Color defaultTint = Color.white;
     
     [Header("Performance")]
@@ -21,11 +24,36 @@ public class ResourceManager : MonoBehaviour
     
     void Start()
     {
+        // Find CanvasMundo if not assigned
+        if (worldCanvas == null)
+        {
+            worldCanvas = GameObject.Find("CanvasMundo")?.GetComponent<Canvas>();
+            if (worldCanvas == null)
+            {
+                Debug.LogError("CanvasMundo not found! Please create a Canvas named 'CanvasMundo' in Screen Space - Overlay mode.");
+                return;
+            }
+        }
+        ConfigureCanvasMundo();
         // Create default prefab if none assigned
         if (resourceIconPrefab == null)
         {
             CreateDefaultPrefab();
         }
+    }
+    
+    private void ConfigureCanvasMundo()
+    {
+        // Set render mode
+        worldCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        // Set RectTransform to cover the whole screen
+        RectTransform rect = worldCanvas.GetComponent<RectTransform>();
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = Vector2.zero;
+        Debug.Log("CanvasMundo configured as Screen Space - Overlay and full screen.");
     }
     
     void Update()
@@ -52,17 +80,16 @@ public class ResourceManager : MonoBehaviour
     
     public void CreateResourceIcon(Resource resource)
     {
-        if (resourceIconPrefab == null) return;
+        if (resourceIconPrefab == null || worldCanvas == null) return;
         
         // Create icon instance
-        GameObject iconObject = Instantiate(resourceIconPrefab);
+        GameObject iconObject = Instantiate(resourceIconPrefab, worldCanvas.transform);
         ResourceIcon icon = iconObject.GetComponent<ResourceIcon>();
         
         if (icon != null)
         {
             icon.SetResource(resource);
-            icon.heightOffset = defaultHeightOffset;
-            icon.scale = defaultScale;
+            icon.size = defaultSize;
             icon.tintColor = defaultTint;
             
             // Link to resource
@@ -152,8 +179,10 @@ public class ResourceManager : MonoBehaviour
         GameObject prefab = new GameObject("ResourceIconPrefab");
         prefab.AddComponent<ResourceIcon>();
         
-        // Add SpriteRenderer (will be disabled by ResourceIcon)
-        prefab.AddComponent<SpriteRenderer>();
+        // Add UI components (will be configured by ResourceIcon)
+        prefab.AddComponent<RectTransform>();
+        prefab.AddComponent<CanvasRenderer>();
+        prefab.AddComponent<Image>();
         
         // Save as prefab (this is just for reference - you'd need to create the actual prefab in Unity)
         resourceIconPrefab = prefab;

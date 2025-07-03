@@ -114,9 +114,6 @@ public class Resource
         
         if (iconInstance != null)
         {
-            // Update position
-            iconInstance.SetPosition(GetCurrentPosition());
-            
             // Update visibility based on conditions
             bool shouldBeVisible = shouldShowIcon && isActive;
             iconInstance.SetVisible(shouldBeVisible);

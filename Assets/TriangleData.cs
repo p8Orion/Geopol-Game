@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 [System.Serializable]
 public class TriangleData
@@ -56,6 +57,14 @@ public class TriangleData
     public Vector3 GetCenter()
     {
         return (a + b + c) / 3f;
+    }
+
+    // Calculate the normal vector of the triangle
+    public Vector3 GetNormal()
+    {
+        Vector3 side1 = b - a;
+        Vector3 side2 = c - a;
+        return Vector3.Cross(side1, side2).normalized;
     }
 
     // Calculate the three side lengths of the triangle
@@ -137,6 +146,13 @@ public class TriangleData
     /// </summary>
     public void SetNaturalResource(ResourceType resourceType)
     {
+        // Destroy existing icon if changing resource
+        if (resourceIcon != null)
+        {
+            resourceIcon.DestroyIcon();
+            resourceIcon = null;
+        }
+        
         naturalResource = resourceType;
         UpdateResourceIcon();
     }
@@ -175,21 +191,9 @@ public class TriangleData
     /// </summary>
     private void CreateResourceIcon()
     {
-        // Find or create the parent GameObject for all natural resource icons
-        GameObject parentGO = GameObject.Find("Natural Resources");
-        if (parentGO == null)
-        {
-            parentGO = new GameObject("Natural Resources");
-        }
-        
         GameObject iconGO = new GameObject($"ResourceIcon_{id}_{naturalResource}");
-        iconGO.transform.SetParent(parentGO.transform);
-        iconGO.transform.position = GetCenter();
-        
         ResourceIcon icon = iconGO.AddComponent<ResourceIcon>();
-        icon.SetTriangleData(this); // Set reference to this triangle
-        icon.SetNaturalResourceMode(); // Use natural resource standard
-        
+        icon.SetTriangleData(this);
         resourceIcon = icon;
     }
 
