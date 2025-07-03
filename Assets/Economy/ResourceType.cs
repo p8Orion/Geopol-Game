@@ -89,4 +89,26 @@ public static class ResourceTypeExtensions
             _ => false
         };
     }
+    
+    public static Color GetColor(this ResourceType resourceType)
+    {
+        return resourceType switch
+        {
+            ResourceType.None => Color.gray,
+            ResourceType.Cereal => Color.yellow,
+            ResourceType.Fish => Color.cyan,
+            ResourceType.FreshWater => Color.blue,
+            ResourceType.Iron => Color.gray,
+            ResourceType.IndustrialGoods => Color.orange,
+            ResourceType.ConsumerGoods => Color.magenta,
+            ResourceType.NavalMaterials => Color.blue,
+            ResourceType.HighTech => Color.cyan,
+            ResourceType.Hydrocarbons => Color.black,
+            ResourceType.Electricity => Color.yellow,
+            ResourceType.RareEarths => Color.green,
+            ResourceType.Uranium => Color.green,
+            ResourceType.Gold => Color.yellow,
+            _ => Color.white
+        };
+    }
 } 

@@ -192,11 +192,7 @@ public class MapEditor : MonoBehaviour
             }
         }
         
-        // Draw resource icons when in Resources mode or when showing resources
-        if (currentMode == EditorMode.Resources || (isEditing && currentPreviewMode == PreviewMode.TerrainType))
-        {
-            DrawResourceIcons();
-        }
+        // Resource icons are now handled by ResourceIconRenderer component
     }
     
     void DrawCountryOutlines()
@@ -454,8 +450,9 @@ public class MapEditor : MonoBehaviour
             // Get all resource types
             ResourceType[] resourceTypes = (ResourceType[])System.Enum.GetValues(typeof(ResourceType));
             
-            int buttonSize = 60;
-            int buttonsPerRow = 3;
+            int buttonWidth = 120;
+            int buttonHeight = 40;
+            int buttonsPerRow = 2;
             
             for (int i = 0; i < resourceTypes.Length; i++)
             {
@@ -468,7 +465,7 @@ public class MapEditor : MonoBehaviour
                 var resourceType = resourceTypes[i];
                 
                 GUI.backgroundColor = (resourceType == selectedResourceType) ? Color.green : Color.white;
-                if (GUILayout.Button($"{resourceType.GetEmoji()}\n{resourceType.GetDisplayName()}", GUILayout.Width(buttonSize), GUILayout.Height(buttonSize)))
+                if (GUILayout.Button($"{resourceType.GetEmoji()} {resourceType.GetDisplayName()}", GUILayout.Width(buttonWidth), GUILayout.Height(buttonHeight)))
                 {
                     SelectResourceType(resourceType);
                 }
@@ -1042,6 +1039,25 @@ public class MapEditor : MonoBehaviour
                 // Update country borders after undoing
                 icoSphere.UpdateCountryBorders();
                 break;
+                
+            case EditorMode.Resources:
+                // For resource mode, restore the original resource assignments
+                foreach (var entry in originalTerrainTypes)
+                {
+                    if (entry.Key < icoSphere.triangleDataList.Count)
+                    {
+                        var triangle = icoSphere.triangleDataList[entry.Key];
+                        
+                        // Restore original resource assignment
+                        // Negative values indicate resource data
+                        if (entry.Value < 0)
+                        {
+                            ResourceType originalResource = (ResourceType)(-entry.Value);
+                            triangle.SetNaturalResource(originalResource);
+                        }
+                    }
+                }
+                break;
         }
         
         UpdateStatus($"Undid last paint operation ({originalTerrainTypes.Count} triangles).");
@@ -1437,8 +1453,8 @@ public class MapEditor : MonoBehaviour
             originalTerrainTypes[triangleIndex] = originalResourceData;
         }
 
-        // Assign selected resource
-        triangle.naturalResource = selectedResourceType;
+        // Assign selected resource using the new method that handles icon creation
+        triangle.SetNaturalResource(selectedResourceType);
         
         // Update preview colors for resource mode
         Color previewColor = GetResourcePreviewColor(selectedResourceType);
@@ -1456,25 +1472,8 @@ public class MapEditor : MonoBehaviour
     /// </summary>
     private Color GetResourcePreviewColor(ResourceType resourceType)
     {
-        // Base colors for different resource types
-        return resourceType switch
-        {
-            ResourceType.None => Color.gray, // No resource
-            ResourceType.Cereal => new Color(0.8f, 0.7f, 0.2f), // Yellow-brown
-            ResourceType.Fish => new Color(0.2f, 0.5f, 0.8f),   // Blue
-            ResourceType.FreshWater => new Color(0.2f, 0.7f, 1f), // Light blue
-            ResourceType.Iron => new Color(0.6f, 0.4f, 0.3f),   // Brown
-            ResourceType.IndustrialGoods => new Color(0.7f, 0.7f, 0.7f), // Gray
-            ResourceType.ConsumerGoods => new Color(0.9f, 0.9f, 0.9f),   // Light gray
-            ResourceType.NavalMaterials => new Color(0.3f, 0.5f, 0.7f),  // Navy blue
-            ResourceType.HighTech => new Color(0.8f, 0.2f, 0.8f),       // Purple
-            ResourceType.Hydrocarbons => new Color(0.2f, 0.2f, 0.2f),   // Black
-            ResourceType.Electricity => new Color(1f, 1f, 0.2f),        // Bright yellow
-            ResourceType.RareEarths => new Color(0.2f, 0.8f, 0.2f),     // Green
-            ResourceType.Uranium => new Color(0.8f, 1f, 0.2f),          // Lime green
-            ResourceType.Gold => new Color(1f, 0.8f, 0.2f),             // Gold
-            _ => Color.magenta
-        };
+        // Use the color from ResourceType
+        return resourceType.GetColor();
     }
 
     void DrawCountryPreviewOverlay()
@@ -1550,65 +1549,5 @@ public class MapEditor : MonoBehaviour
         }
     }
     
-    void DrawResourceIcons()
-    {
-        if (icoSphere == null || icoSphere.triangleDataList == null) return;
-        
-        // Debug: Count resources
-        int resourceCount = 0;
-        foreach (var triangle in icoSphere.triangleDataList)
-        {
-            if (triangle.HasResource())
-            {
-                resourceCount++;
-            }
-        }
-        
-        if (resourceCount == 0) return; // No resources to draw
-        
-        // Create a simple unlit shader for drawing icons
-        if (lineMaterial == null)
-        {
-            CreateLineMaterial();
-        }
-        
-        if (lineMaterial != null)
-        {
-            lineMaterial.SetPass(0);
-            
-            // Draw small triangles for each resource
-            GL.Begin(GL.TRIANGLES);
-            
-            foreach (var triangle in icoSphere.triangleDataList)
-            {
-                // Draw icon for any resource that's not the default "no resource" state
-                if (triangle.HasResource())
-                {
-                    Vector3 center = triangle.GetCenter();
-                    Vector3 cameraPos = Camera.main.transform.position;
-                    Vector3 direction = (center - cameraPos).normalized;
-                    
-                    // Position icon slightly above the triangle
-                    Vector3 iconPos = center + Vector3.up * 0.1f;
-                    
-                    // Make icon face camera
-                    Vector3 right = Vector3.Cross(direction, Vector3.up).normalized;
-                    Vector3 up = Vector3.Cross(right, direction).normalized;
-                    
-                    float iconSize = 0.05f;
-                    
-                    // Draw a small colored circle for the resource
-                    Color resourceColor = GetResourcePreviewColor(triangle.naturalResource);
-                    GL.Color(resourceColor);
-                    
-                    // Draw a simple triangle as icon
-                    GL.Vertex(iconPos + right * iconSize);
-                    GL.Vertex(iconPos - right * iconSize + up * iconSize);
-                    GL.Vertex(iconPos - right * iconSize - up * iconSize);
-                }
-            }
-            
-            GL.End();
-        }
-    }
+
 }

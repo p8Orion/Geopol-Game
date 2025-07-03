@@ -106,6 +106,12 @@ public class Resource
     
     public void UpdateVisual()
     {
+        // Create icon if it doesn't exist and we should show it
+        if (iconInstance == null && shouldShowIcon && isActive)
+        {
+            CreateIcon();
+        }
+        
         if (iconInstance != null)
         {
             // Update position
@@ -115,6 +121,21 @@ public class Resource
             bool shouldBeVisible = shouldShowIcon && isActive;
             iconInstance.SetVisible(shouldBeVisible);
         }
+    }
+    
+    private void CreateIcon()
+    {
+        // Create a GameObject for the icon
+        GameObject iconGO = new GameObject($"ResourceIcon_{type}");
+        iconGO.transform.position = GetCurrentPosition();
+        
+        // Add ResourceIcon component
+        ResourceIcon icon = iconGO.AddComponent<ResourceIcon>();
+        icon.SetResource(this);
+        icon.SetTint(type.GetColor());
+        
+        // Store reference
+        iconInstance = icon;
     }
     
     public bool HasReachedDestination()

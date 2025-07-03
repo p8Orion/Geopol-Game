@@ -10,13 +10,16 @@ public class ResourceIcon : MonoBehaviour
     [Header("Resource Data")]
     public Resource resource;
     public ResourceType resourceType;
+    public TriangleData triangleData; // For natural resource display
     
     [Header("Visual Settings")]
-    public float heightOffset = 0.5f; // Height above the triangle
-    public float scale = 1f;
+    public float heightOffset = 50f; // Much higher above the triangle
+    public float scale = 100f; // Target size in world units
     public Color tintColor = Color.white;
+    public bool useBillboard = true; // true = billboard, false = flat on terrain
     
     [Header("Animation")]
+    public bool enableBobbing = false; // Default to false for natural resources
     public float bobSpeed = 2f;
     public float bobHeight = 0.1f;
     public float rotationSpeed = 30f;
@@ -33,32 +36,68 @@ public class ResourceIcon : MonoBehaviour
         // Set initial position
         if (resource != null)
         {
+            // For effective resources, use resource position
             basePosition = resource.GetCurrentPosition() + Vector3.up * heightOffset;
             transform.position = basePosition;
             resourceType = resource.type;
         }
+        else if (triangleData != null)
+        {
+            // For natural resources, use triangle center
+            basePosition = triangleData.GetCenter() + Vector3.up * heightOffset;
+            transform.position = basePosition;
+        }
+        
+        // Create sprite renderer if it doesn't exist
+        if (spriteRenderer == null)
+        {
+            spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
+        }
         
         // Set sprite based on resource type
         UpdateSprite();
+        
+        // Don't scale transform, create sprite with correct size
+        transform.localScale = Vector3.one;
     }
     
     void Update()
     {
-        // Billboard effect - always face camera
-        if (mainCamera != null)
+        // Billboard effect - only if enabled
+        if (useBillboard && mainCamera != null)
         {
             transform.LookAt(mainCamera.transform);
             transform.Rotate(0, 180, 0); // Adjust orientation
         }
+        else if (!useBillboard)
+        {
+            // Flat on terrain - face up (Y axis)
+            transform.rotation = Quaternion.LookRotation(Vector3.up);
+        }
         
-        // Bobbing animation
-        bobTime += Time.deltaTime * bobSpeed;
-        float bobOffset = Mathf.Sin(bobTime) * bobHeight;
-        transform.position = basePosition + Vector3.up * bobOffset;
+        // Bobbing animation (only if enabled)
+        if (enableBobbing)
+        {
+            bobTime += Time.deltaTime * bobSpeed;
+            float bobOffset = Mathf.Sin(bobTime) * bobHeight;
+            transform.position = basePosition + Vector3.up * bobOffset;
+        }
+        else
+        {
+            // Keep position static at base position
+            transform.position = basePosition;
+        }
         
-        // Rotation animation
-        transform.Rotate(0, rotationSpeed * Time.deltaTime, 0);
+        // Rotation animation (only if billboard)
+        if (useBillboard)
+        {
+            transform.Rotate(0, rotationSpeed * Time.deltaTime, 0);
+        }
     }
+    
+
+    
+
     
     public void SetResource(Resource newResource)
     {
@@ -66,6 +105,18 @@ public class ResourceIcon : MonoBehaviour
         if (resource != null)
         {
             resourceType = resource.type;
+            tintColor = resourceType.GetColor(); // Set color automatically
+            UpdateSprite();
+        }
+    }
+    
+    public void SetTriangleData(TriangleData triangle)
+    {
+        triangleData = triangle;
+        if (triangleData != null)
+        {
+            resourceType = triangleData.naturalResource;
+            tintColor = resourceType.GetColor(); // Set color automatically
             UpdateSprite();
         }
     }
@@ -73,6 +124,7 @@ public class ResourceIcon : MonoBehaviour
     public void SetResourceType(ResourceType type)
     {
         resourceType = type;
+        tintColor = resourceType.GetColor(); // Set color automatically
         UpdateSprite();
     }
     
@@ -80,34 +132,51 @@ public class ResourceIcon : MonoBehaviour
     {
         if (spriteRenderer == null) return;
         
-        // Get emoji as sprite
-        string emoji = resourceType.GetEmoji();
-        
-        // For now, we'll use a simple approach with TextMeshPro
-        // In a real implementation, you'd want to use a sprite atlas with emoji textures
-        CreateEmojiSprite(emoji);
+        // Create a simple colored circle sprite
+        CreateSimpleSprite();
     }
     
-    private void CreateEmojiSprite(string emoji)
+    private void CreateSimpleSprite()
     {
-        // Create a TextMeshPro component for emoji display
-        TextMeshPro tmp = GetComponent<TextMeshPro>();
-        if (tmp == null)
+        // Create a simple white circle texture
+        int size = 64; // Fixed small size
+        Texture2D texture = new Texture2D(size, size);
+        
+        // Fill with transparent background
+        Color[] pixels = new Color[size * size];
+        for (int i = 0; i < pixels.Length; i++)
         {
-            tmp = gameObject.AddComponent<TextMeshPro>();
+            pixels[i] = Color.clear;
         }
         
-        // Configure TextMeshPro for emoji display
-        tmp.text = emoji;
-        tmp.fontSize = 2f;
-        tmp.alignment = TextAlignmentOptions.Center;
-        tmp.color = tintColor;
+        // Draw a circle in the center
+        Vector2 center = new Vector2(size / 2f, size / 2f);
+        float radius = size / 3f;
         
-        // Disable the SpriteRenderer since we're using TextMeshPro
-        if (spriteRenderer != null)
+        for (int x = 0; x < size; x++)
         {
-            spriteRenderer.enabled = false;
+            for (int y = 0; y < size; y++)
+            {
+                float distance = Vector2.Distance(new Vector2(x, y), center);
+                if (distance <= radius)
+                {
+                    pixels[y * size + x] = tintColor;
+                }
+            }
         }
+        
+        texture.SetPixels(pixels);
+        texture.Apply();
+        
+        // Create sprite from texture with size/scale pixels per unit (inverse relationship)
+        Sprite sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size / scale);
+        
+        // Set the sprite
+        spriteRenderer.sprite = sprite;
+        spriteRenderer.color = tintColor;
+        
+        // Make sure it's visible
+        spriteRenderer.enabled = true;
     }
     
     public void SetPosition(Vector3 position)
@@ -134,6 +203,30 @@ public class ResourceIcon : MonoBehaviour
     {
         scale = newScale;
         transform.localScale = Vector3.one * scale;
+    }
+    
+    public void SetBobbing(bool enable)
+    {
+        enableBobbing = enable;
+    }
+    
+    public void SetBillboard(bool useBillboardMode)
+    {
+        useBillboard = useBillboardMode;
+    }
+    
+    public void SetNaturalResourceMode()
+    {
+        useBillboard = false; // No billboard
+        scale = 100f; // 50 unidades
+        heightOffset = 5f; // Un poco más arriba del terreno
+    }
+    
+    public void SetRealResourceMode()
+    {
+        useBillboard = true; // Billboard
+        scale = 250f; // 100 unidades
+        heightOffset = 50f; // Más alto
     }
     
     public void DestroyIcon()

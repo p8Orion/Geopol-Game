@@ -12,6 +12,8 @@ public class TriangleData
     
     [Header("Natural Resources")]
     public ResourceType naturalResource = ResourceType.None; // None means no resource assigned
+    [System.NonSerialized]
+    public ResourceIcon resourceIcon; // Visual representation of the resource
 
     [Header("Country Assignment")]
     [NonSerialized]
@@ -128,6 +130,67 @@ public class TriangleData
     public bool HasResource()
     {
         return naturalResource != ResourceType.None;
+    }
+    
+    /// <summary>
+    /// Sets the natural resource for this triangle and creates/updates the visual icon
+    /// </summary>
+    public void SetNaturalResource(ResourceType resourceType)
+    {
+        naturalResource = resourceType;
+        UpdateResourceIcon();
+    }
+    
+    /// <summary>
+    /// Creates or updates the resource icon based on the current naturalResource
+    /// </summary>
+    public void UpdateResourceIcon()
+    {
+        // Destroy existing icon if no resource
+        if (naturalResource == ResourceType.None)
+        {
+            if (resourceIcon != null)
+            {
+                resourceIcon.DestroyIcon();
+                resourceIcon = null;
+            }
+            return;
+        }
+        
+        // Create new icon if needed
+        if (resourceIcon == null)
+        {
+            CreateResourceIcon();
+        }
+        else
+        {
+            // Update existing icon
+            resourceIcon.SetResourceType(naturalResource);
+            resourceIcon.SetTint(naturalResource.GetColor());
+        }
+    }
+    
+    /// <summary>
+    /// Creates a new ResourceIcon for this triangle
+    /// </summary>
+    private void CreateResourceIcon()
+    {
+        // Find or create the parent GameObject for all natural resource icons
+        GameObject parentGO = GameObject.Find("Natural Resources");
+        if (parentGO == null)
+        {
+            parentGO = new GameObject("Natural Resources");
+        }
+        
+        GameObject iconGO = new GameObject($"ResourceIcon_{id}_{naturalResource}");
+        iconGO.transform.SetParent(parentGO.transform);
+        iconGO.transform.position = GetCenter();
+        
+        ResourceIcon icon = iconGO.AddComponent<ResourceIcon>();
+        icon.SetTriangleData(this); // Set reference to this triangle
+        icon.SetNaturalResourceMode(); // Use natural resource standard
+        
+        resourceIcon = icon;
     }
 
     public override string ToString()

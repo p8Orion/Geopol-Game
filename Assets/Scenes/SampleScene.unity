@@ -1405,6 +1405,7 @@ MonoBehaviour:
     useDefaultCountries: 1
   onlyPaintOverUnclaimed: 1
   countryPreviewAlpha: 0.5
+  selectedResourceType: 0
   showBrushPreview: 1
   brushPreviewColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   useNewInputSystem: 1
@@ -1515,7 +1516,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1209789516}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 042477ca8e574fc44a9c6fe0c6451786, type: 3}
   m_Name: 
@@ -1534,6 +1535,7 @@ MonoBehaviour:
   pathHeight: 50
   terrainFilter: 0
   sameCountryOnly: 0
+  strictVertexAdjacency: 0
 --- !u!114 &1209789518
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1552,6 +1554,7 @@ MonoBehaviour:
   showTriangleLabels: 1
   terrainFilter: 0
   sameCountryOnly: 0
+  strictVertexAdjacency: 0
 --- !u!4 &1209789519
 Transform:
   m_ObjectHideFlags: 0
