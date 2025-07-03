@@ -8,7 +8,8 @@ using UnityEditor;
 public enum EditorMode
 {
     Terrain,
-    Country
+    Country,
+    Resources
     // Future modes like Borders, Rivers, etc., can be added here.
 }
 
@@ -38,6 +39,9 @@ public class MapEditor : MonoBehaviour
     [Header("Country Painting Settings")]
     public bool onlyPaintOverUnclaimed = true; // Only paint over triangles with no country assigned
     public float countryPreviewAlpha = 0.5f; // Alpha for country preview overlay
+    
+    [Header("Resource Settings")]
+    public ResourceType selectedResourceType = ResourceType.Cereal;
 
     [Header("Visual Feedback")]
     public bool showBrushPreview = true;
@@ -299,6 +303,10 @@ public class MapEditor : MonoBehaviour
         {
             SwitchToMode(EditorMode.Country);
         }
+        if (GUILayout.Button("Resources Mode"))
+        {
+            SwitchToMode(EditorMode.Resources);
+        }
         GUILayout.EndHorizontal();
         
         // --- Preview Mode Section ---
@@ -439,6 +447,51 @@ public class MapEditor : MonoBehaviour
                 GUILayout.Label("No countries available. Create one to start editing.");
             }
         }
+        
+        // --- Resource Selection Section (only show in Resources mode) ---
+        if (currentMode == EditorMode.Resources)
+        {
+            GUILayout.Label("Resource Selection", EditorStyles.boldLabel);
+            
+            // Resource type selection
+            GUILayout.Label($"Selected Resource: {selectedResourceType.GetEmoji()} {selectedResourceType.GetDisplayName()}");
+    
+            // Resource type buttons
+            GUILayout.Label("Available Resources:");
+            
+            // Get all resource types
+            ResourceType[] resourceTypes = (ResourceType[])System.Enum.GetValues(typeof(ResourceType));
+            
+            int buttonSize = 60;
+            int buttonsPerRow = 3;
+            
+            for (int i = 0; i < resourceTypes.Length; i++)
+            {
+                if (i % buttonsPerRow == 0)
+                {
+                    if (i > 0) GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                }
+
+                var resourceType = resourceTypes[i];
+                
+                GUI.backgroundColor = (resourceType == selectedResourceType) ? Color.green : Color.white;
+                if (GUILayout.Button($"{resourceType.GetEmoji()}\n{resourceType.GetDisplayName()}", GUILayout.Width(buttonSize), GUILayout.Height(buttonSize)))
+                {
+                    SelectResourceType(resourceType);
+                }
+            }
+            GUILayout.EndHorizontal();
+            
+            // Add "None" option for removing resources
+            GUILayout.Space(10);
+            GUI.backgroundColor = Color.gray;
+            if (GUILayout.Button("None (Remove Resource)", GUILayout.ExpandWidth(true)))
+            {
+                SelectResourceType(ResourceType.Cereal); // Will be handled as "remove" in painting logic
+            }
+            GUI.backgroundColor = Color.white;
+        }
 
         // --- Terrain Selection Section ---
         GUILayout.Label("Terrain Type", EditorStyles.boldLabel);
@@ -513,43 +566,53 @@ public class MapEditor : MonoBehaviour
             // If we're currently editing, update the material immediately
             var renderer = icoSphere.GetComponent<MeshRenderer>();
             
-            if (newMode == EditorMode.Country)
+                    if (newMode == EditorMode.Country)
+        {
+            // For country mode, use splatmap material
+            if (previewMaterials[EditorMode.Country] == null)
             {
-                // For country mode, use splatmap material
-                if (previewMaterials[EditorMode.Country] == null)
-                {
-                    icoSphere.CreateAndApplyNewSplatMaterial();
-                    previewMaterials[EditorMode.Country] = renderer.material;
-                }
-                else
-                {
-                    renderer.material = previewMaterials[EditorMode.Country];
-                }
-                
-                // Clear vertex colors for splatmap material
-                var mesh = icoSphere.GetComponent<MeshFilter>().mesh;
-                if (mesh != null && mesh.colors.Length > 0)
-                {
-                    var colors = new Color[mesh.vertexCount];
-                    for(int i = 0; i < colors.Length; i++)
-                    {
-                        colors[i] = Color.white;
-                    }
-                    mesh.colors = colors;
-                }
-                
-                UpdateStatus("Switched to Country editing mode with textured terrain.");
+                icoSphere.CreateAndApplyNewSplatMaterial();
+                previewMaterials[EditorMode.Country] = renderer.material;
             }
             else
             {
-                // For terrain mode, use simple preview material
-                if (previewMaterials.ContainsKey(EditorMode.Terrain))
-                {
-                    renderer.material = previewMaterials[EditorMode.Terrain];
-                    RefreshMeshColors();
-                    UpdateStatus("Switched to Terrain editing mode.");
-                }
+                renderer.material = previewMaterials[EditorMode.Country];
             }
+            
+            // Clear vertex colors for splatmap material
+            var mesh = icoSphere.GetComponent<MeshFilter>().mesh;
+            if (mesh != null && mesh.colors.Length > 0)
+            {
+                var colors = new Color[mesh.vertexCount];
+                for(int i = 0; i < colors.Length; i++)
+                {
+                    colors[i] = Color.white;
+                }
+                mesh.colors = colors;
+            }
+            
+            UpdateStatus("Switched to Country editing mode with textured terrain.");
+        }
+        else if (newMode == EditorMode.Resources)
+        {
+            // For resources mode, use simple preview material like terrain mode
+            if (previewMaterials.ContainsKey(EditorMode.Terrain))
+            {
+                renderer.material = previewMaterials[EditorMode.Terrain];
+                RefreshMeshColors();
+                UpdateStatus("Switched to Resources editing mode.");
+            }
+        }
+        else
+        {
+            // For terrain mode, use simple preview material
+            if (previewMaterials.ContainsKey(EditorMode.Terrain))
+            {
+                renderer.material = previewMaterials[EditorMode.Terrain];
+                RefreshMeshColors();
+                UpdateStatus("Switched to Terrain editing mode.");
+            }
+        }
         }
         else
         {
@@ -682,6 +745,27 @@ public class MapEditor : MonoBehaviour
             
             UpdateStatus("Switched to Country preview mode with textured terrain.");
         }
+        else if (currentMode == EditorMode.Resources)
+        {
+            // For resources mode, use the simple preview material like terrain mode
+            if (previewMaterials.ContainsKey(EditorMode.Terrain))
+            {
+                var previewMat = previewMaterials[EditorMode.Terrain];
+                if (renderer.material != previewMat)
+                {
+                    renderer.material = previewMat;
+                    // Refresh ALL mesh colors with preview colors when entering preview mode
+                    RefreshMeshColors();
+                    UpdateStatus("Switched to Resources preview mode.");
+                }
+            }
+            else
+            {
+                UpdateStatus("Error: No preview material for Resources mode.");
+                isPainting = false;
+                return;
+            }
+        }
         else
         {
             // For terrain mode, use the simple preview material
@@ -813,6 +897,9 @@ public class MapEditor : MonoBehaviour
                             break;
                         case EditorMode.Country:
                             PaintCountry(i, colors);
+                            break;
+                        case EditorMode.Resources:
+                            PaintResource(i, colors);
                             break;
                         // Future modes like PaintBorders would be called here
                     }
@@ -1319,6 +1406,15 @@ public class MapEditor : MonoBehaviour
             UpdateStatus("Selected: None (Erase mode) - Click to remove countries from triangles");
         }
     }
+    
+    /// <summary>
+    /// Selects a resource type for editing
+    /// </summary>
+    public void SelectResourceType(ResourceType resourceType)
+    {
+        selectedResourceType = resourceType;
+        UpdateStatus($"Selected resource: {resourceType.GetEmoji()} {resourceType.GetDisplayName()}");
+    }
 
     /// <summary>
     /// Handles painting logic for country assignment
@@ -1352,6 +1448,61 @@ public class MapEditor : MonoBehaviour
         
         // Note: In country mode, we don't modify vertex colors since we're using the splatmap material
         // Country borders are drawn dynamically in OnRenderObject, so no need to update borders here
+    }
+    
+    /// <summary>
+    /// Handles painting logic for resource assignment
+    /// </summary>
+    private void PaintResource(int triangleIndex, Color[] colors)
+    {
+        var triangle = icoSphere.triangleDataList[triangleIndex];
+
+        // Store original resource for undo
+        if (!originalTerrainTypes.ContainsKey(triangleIndex))
+        {
+            // We'll use the terrain types dictionary to store original resource data
+            // Store as negative values to distinguish from terrain types
+            int originalResourceData = -(int)triangle.naturalResource;
+            originalTerrainTypes[triangleIndex] = originalResourceData;
+        }
+
+        // Assign selected resource
+        triangle.naturalResource = selectedResourceType;
+        
+        // Update preview colors for resource mode
+        Color previewColor = GetResourcePreviewColor(selectedResourceType);
+        int baseVertexIndex = triangleIndex * 3;
+        if (baseVertexIndex + 2 < colors.Length)
+        {
+            colors[baseVertexIndex] = previewColor;
+            colors[baseVertexIndex + 1] = previewColor;
+            colors[baseVertexIndex + 2] = previewColor;
+        }
+    }
+    
+    /// <summary>
+    /// Gets preview color for resource type
+    /// </summary>
+    private Color GetResourcePreviewColor(ResourceType resourceType)
+    {
+        // Base colors for different resource types
+        return resourceType switch
+        {
+            ResourceType.Cereal => new Color(0.8f, 0.7f, 0.2f), // Yellow-brown
+            ResourceType.Fish => new Color(0.2f, 0.5f, 0.8f),   // Blue
+            ResourceType.FreshWater => new Color(0.2f, 0.7f, 1f), // Light blue
+            ResourceType.Iron => new Color(0.6f, 0.4f, 0.3f),   // Brown
+            ResourceType.IndustrialGoods => new Color(0.7f, 0.7f, 0.7f), // Gray
+            ResourceType.ConsumerGoods => new Color(0.9f, 0.9f, 0.9f),   // Light gray
+            ResourceType.NavalMaterials => new Color(0.3f, 0.5f, 0.7f),  // Navy blue
+            ResourceType.HighTech => new Color(0.8f, 0.2f, 0.8f),       // Purple
+            ResourceType.Hydrocarbons => new Color(0.2f, 0.2f, 0.2f),   // Black
+            ResourceType.Electricity => new Color(1f, 1f, 0.2f),        // Bright yellow
+            ResourceType.RareEarths => new Color(0.2f, 0.8f, 0.2f),     // Green
+            ResourceType.Uranium => new Color(0.8f, 1f, 0.2f),          // Lime green
+            ResourceType.Gold => new Color(1f, 0.8f, 0.2f),             // Gold
+            _ => Color.magenta
+        };
     }
 
     void DrawCountryPreviewOverlay()

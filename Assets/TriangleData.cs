@@ -10,6 +10,9 @@ public class TriangleData
     public int terrainType;
     public float colorR, colorG, colorB;
     
+    [Header("Natural Resources")]
+    public ResourceType naturalResource = ResourceType.Cereal;
+
     [Header("Country Assignment")]
     [NonSerialized]
     public Country country;

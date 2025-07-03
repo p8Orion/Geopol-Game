@@ -147,7 +147,7 @@ public class DistanceCalculator : MonoBehaviour
     }
     
     /// <summary>
-    /// Checks if all triangles sharing the vertex between two triangles are valid
+    /// Checks if the transition between two triangles is valid with strict adjacency rules
     /// </summary>
     private bool checkStrictVertexAdjacency(int fromTriangleId, int toTriangleId, int startTriangleId)
     {
@@ -155,16 +155,41 @@ public class DistanceCalculator : MonoBehaviour
         var toTriangle = icoSphere.triangleDataList[toTriangleId];
         var startTriangle = icoSphere.triangleDataList[startTriangleId];
         
-        // Find the intersection of vertex-adjacent triangles (the triangles that share the vertex)
-        var sharedTriangles = fromTriangle.adjacentTriangles.Intersect(toTriangle.vertexAdjacentTriangles);
-
-        // Check if majority of triangles sharing this vertex are valid
+        // Check edge adjacency: if there's intersection, it must be valid
+        var edgeSharedTriangles = fromTriangle.adjacentTriangles.Intersect(toTriangle.adjacentTriangles);
+        if (edgeSharedTriangles.Any())
+        {
+            // If edge adjacency exists, check if any shared triangle is valid
+            foreach (int triangleId in edgeSharedTriangles)
+            {
+                if (triangleId < 0 || triangleId >= icoSphere.triangleDataList.Count) continue;
+                
+                var triangle = icoSphere.triangleDataList[triangleId];
+                
+                bool isValid = true;
+                
+                // Check terrain filter
+                if (!IsTerrainValid(triangle.terrainType)) isValid = false;
+                
+                // Check country filter
+                if (sameCountryOnly && triangle.country != startTriangle.country) {
+                    isValid = false;
+                }
+                
+                if (isValid) return true; // At least one edge-shared triangle is valid
+            }
+            return false; // No valid edge-shared triangles
+        }
+        
+        // Check vertex adjacency: majority rule
+        var vertexSharedTriangles = fromTriangle.vertexAdjacentTriangles.Intersect(toTriangle.vertexAdjacentTriangles);
+        
         int validCount = 0;
         int totalCount = 0;
         
-        foreach (int triangleId in sharedTriangles)
+        foreach (int triangleId in vertexSharedTriangles)
         {
-            Debug.Log($"Checking triangle {triangleId}");
+            Debug.Log($"Checking vertex-shared triangle {triangleId}");
             if (triangleId < 0 || triangleId >= icoSphere.triangleDataList.Count) continue;
             
             totalCount++;
