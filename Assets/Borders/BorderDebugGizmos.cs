@@ -28,8 +28,8 @@ public class BorderDebugGizmos : MonoBehaviour
     
     void Start()
     {
-        icoSphere = FindObjectOfType<IcoSphere>();
-        borderManager = FindObjectOfType<BorderManager>();
+        icoSphere = FindFirstObjectByType<IcoSphere>();
+        borderManager = FindFirstObjectByType<BorderManager>();
     }
     
 #if UNITY_EDITOR
@@ -38,8 +38,8 @@ public class BorderDebugGizmos : MonoBehaviour
         if (!showBorderChains) return;
         
         // Obtener referencias si no las tenemos
-        if (icoSphere == null) icoSphere = FindObjectOfType<IcoSphere>();
-        if (borderManager == null) borderManager = FindObjectOfType<BorderManager>();
+        if (icoSphere == null) icoSphere = FindFirstObjectByType<IcoSphere>();
+        if (borderManager == null) borderManager = FindFirstObjectByType<BorderManager>();
         
         if (icoSphere == null || borderManager == null) 
         {

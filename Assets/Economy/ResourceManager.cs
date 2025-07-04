@@ -89,8 +89,7 @@ public class ResourceManager : MonoBehaviour
         if (icon != null)
         {
             icon.SetResource(resource);
-            icon.size = defaultSize;
-            icon.tintColor = defaultTint;
+            // El color se maneja automáticamente en SetResource()
             
             // Link to resource
             resource.iconInstance = icon;

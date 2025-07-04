@@ -129,7 +129,7 @@ public class Resource
         // Add ResourceIcon component
         ResourceIcon icon = iconGO.AddComponent<ResourceIcon>();
         icon.SetResource(this);
-        icon.SetTint(type.GetColor());
+        // No llamar SetTint() - SetResource() ya maneja el estilo
         
         // Store reference
         iconInstance = icon;

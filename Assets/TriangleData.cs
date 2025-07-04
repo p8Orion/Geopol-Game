@@ -146,6 +146,12 @@ public class TriangleData
     /// </summary>
     public void SetNaturalResource(ResourceType resourceType)
     {
+        // Si es el mismo recurso, no hacer nada
+        if (naturalResource == resourceType)
+        {
+            return;
+        }
+        
         // Destroy existing icon if changing resource
         if (resourceIcon != null)
         {
@@ -173,16 +179,16 @@ public class TriangleData
             return;
         }
         
-        // Create new icon if needed
-        if (resourceIcon == null)
-        {
-            CreateResourceIcon();
-        }
-        else
+        // Verificar si el icono existe y es válido
+        if (resourceIcon != null && resourceIcon.gameObject != null)
         {
             // Update existing icon
             resourceIcon.SetResourceType(naturalResource);
-            resourceIcon.SetTint(naturalResource.GetColor());
+        }
+        else
+        {
+            // Create new icon if needed
+            CreateResourceIcon();
         }
     }
     
@@ -191,7 +197,22 @@ public class TriangleData
     /// </summary>
     private void CreateResourceIcon()
     {
-        GameObject iconGO = new GameObject($"ResourceIcon_{id}_{naturalResource}");
+        // Verificar si ya existe un icono para este triángulo y destruirlo
+        if (resourceIcon != null)
+        {
+            resourceIcon.DestroyIcon();
+            resourceIcon = null;
+        }
+        
+        // Buscar si ya existe un GameObject con el nombre esperado y destruirlo
+        string expectedName = $"ResourceIcon_{id}_{naturalResource}";
+        GameObject existingIcon = GameObject.Find(expectedName);
+        if (existingIcon != null)
+        {
+            UnityEngine.Object.DestroyImmediate(existingIcon);
+        }
+        
+        GameObject iconGO = new GameObject(expectedName);
         ResourceIcon icon = iconGO.AddComponent<ResourceIcon>();
         icon.SetTriangleData(this);
         resourceIcon = icon;

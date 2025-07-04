@@ -276,6 +276,12 @@ public class MapEditor : MonoBehaviour
 
         editorScrollPosition = GUILayout.BeginScrollView(editorScrollPosition);
 
+        // --- Current Zoom Level Section ---
+        float distanceToCamera = GetDistanceToCamera();
+        WorldUIElement.ZoomLevel currentZoomLevel = GetCurrentZoomLevel();
+        GUILayout.Label($"Distance to Camera: {distanceToCamera:F1}");
+        GUILayout.Label($"Current Zoom Level: {currentZoomLevel}");
+        
         // --- Editor Mode Section ---
         GUILayout.Label("Editor Mode", EditorStyles.boldLabel);
         // This could be replaced with a dropdown or buttons in the future
@@ -1547,6 +1553,27 @@ public class MapEditor : MonoBehaviour
             
             GL.End();
         }
+    }
+    
+    /// <summary>
+    /// Gets the current zoom level based on camera distance to the center of the world
+    /// </summary>
+    private WorldUIElement.ZoomLevel GetCurrentZoomLevel()
+    {
+        float distance = GetDistanceToCamera();
+        return WorldUIElement.GetCurrentZoomLevel(distance);
+    }
+    
+    /// <summary>
+    /// Gets the distance from camera to the center of the world
+    /// </summary>
+    private float GetDistanceToCamera()
+    {
+        if (editorCamera == null) return 0f;
+        
+        // Use the center of the world (0,0,0) as reference point
+        Vector3 worldCenter = Vector3.zero;
+        return Vector3.Distance(worldCenter, editorCamera.transform.position);
     }
     
 
