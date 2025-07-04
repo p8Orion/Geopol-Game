@@ -67,19 +67,19 @@ public class ResourceIcon : WorldUIElement
         UpdateSprite();
     }
     
-    protected override ZoomLevel minZoomLevel
+    protected override OrbitalCamera.ZoomLevel minZoomLevel
     {
         get
         {
-            return triangleData != null ? ZoomLevel.Close : ZoomLevel.Ground;
+            return triangleData != null ? OrbitalCamera.ZoomLevel.Close : OrbitalCamera.ZoomLevel.Ground;
         }
     }
     
-    protected override ZoomLevel maxZoomLevel
+    protected override OrbitalCamera.ZoomLevel maxZoomLevel
     {
         get
         {
-            return triangleData != null ? ZoomLevel.Medium : ZoomLevel.Far;
+            return triangleData != null ? OrbitalCamera.ZoomLevel.Medium : OrbitalCamera.ZoomLevel.Far;
         }
     }
     

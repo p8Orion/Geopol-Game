@@ -3,6 +3,25 @@ using UnityEngine.InputSystem;
 
 public class OrbitalCamera : MonoBehaviour
 {
+    // Zoom Slots - Distancias fijas para diferentes rangos de zoom
+    [Header("Zoom Levels")]
+    public static float planetLevel = 7000f; // Máximo acercamiento (tope de zoom)
+    public static float closeZoomMax = 8200f;
+    public static float mediumZoomMax = 9500f; // Centro - tamaño base
+    public static float farZoomMax = 10000f;
+    public static float veryFarZoomMax = 15000f;
+
+    public enum ZoomLevel
+    {
+        None,
+        Ground, // Máximo acercamiento
+        Close,
+        Medium, // Centro - tamaño base
+        Far,
+        VeryFar
+    }
+
+    [Header("Camera Settings")]
     public Transform target;
     public float distance = 50000f;
     public float zoomSpeed = 1000f;
@@ -49,5 +68,40 @@ public class OrbitalCamera : MonoBehaviour
 
         transform.position = target.position - direction * distance;
         transform.LookAt(target.position);
+    }
+
+    /// <summary>
+    /// Gets the distance value for a specific zoom level
+    /// </summary>
+    public static float GetDistanceForZoomLevel(ZoomLevel level)
+    {
+        switch (level)
+        {
+            case ZoomLevel.Ground: return planetLevel;
+            case ZoomLevel.Close: return closeZoomMax;
+            case ZoomLevel.Medium: return mediumZoomMax;
+            case ZoomLevel.Far: return farZoomMax;
+            case ZoomLevel.VeryFar: return veryFarZoomMax;
+            default: return 0f;
+        }
+    }
+
+    /// <summary>
+    /// Gets the current zoom level based on distance to camera
+    /// </summary>
+    public static ZoomLevel GetCurrentZoomLevel(float distance)
+    {
+        if (distance <= planetLevel)
+            return ZoomLevel.Ground;
+        else if (distance <= closeZoomMax)
+            return ZoomLevel.Close;
+        else if (distance <= mediumZoomMax)
+            return ZoomLevel.Medium;
+        else if (distance <= farZoomMax)
+            return ZoomLevel.Far;
+        else if (distance <= veryFarZoomMax)
+            return ZoomLevel.VeryFar;
+        else
+            return ZoomLevel.None;
     }
 }

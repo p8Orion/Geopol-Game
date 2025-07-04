@@ -278,7 +278,7 @@ public class MapEditor : MonoBehaviour
 
         // --- Current Zoom Level Section ---
         float distanceToCamera = GetDistanceToCamera();
-        WorldUIElement.ZoomLevel currentZoomLevel = GetCurrentZoomLevel();
+        OrbitalCamera.ZoomLevel currentZoomLevel = GetCurrentZoomLevel();
         GUILayout.Label($"Distance to Camera: {distanceToCamera:F1}");
         GUILayout.Label($"Current Zoom Level: {currentZoomLevel}");
         
@@ -1558,10 +1558,10 @@ public class MapEditor : MonoBehaviour
     /// <summary>
     /// Gets the current zoom level based on camera distance to the center of the world
     /// </summary>
-    private WorldUIElement.ZoomLevel GetCurrentZoomLevel()
+    private OrbitalCamera.ZoomLevel GetCurrentZoomLevel()
     {
         float distance = GetDistanceToCamera();
-        return WorldUIElement.GetCurrentZoomLevel(distance);
+        return OrbitalCamera.GetCurrentZoomLevel(distance);
     }
     
     /// <summary>

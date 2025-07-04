@@ -15,28 +15,10 @@ public abstract class WorldUIElement : MonoBehaviour
     
     [Header("Zoom Fade")]
     public float fadeDistance = 300f; // Distancia de transición para el fade
-
-    // Slots fijos para diferentes rangos de zoom
-    [Header("Zoom Slots")]
-    public static float planetLevel = 7000f; // Máximo acercamiento (tope de zoom)
-    public static float closeZoomMax = 8200f;
-    public static float mediumZoomMax = 9500f; // Centro - tamaño base
-    public static float farZoomMax = 10000f;
-    public static float veryFarZoomMax = 15000f;
-
-    public enum ZoomLevel
-    {
-        None,
-        Ground, // Máximo acercamiento
-        Close,
-        Medium, // Centro - tamaño base
-        Far,
-        VeryFar
-    }
     
     // Las clases derivadas deben definir estos valores
-    protected abstract ZoomLevel minZoomLevel { get; }
-    protected abstract ZoomLevel maxZoomLevel { get; }
+    protected abstract OrbitalCamera.ZoomLevel minZoomLevel { get; }
+    protected abstract OrbitalCamera.ZoomLevel maxZoomLevel { get; }
     protected abstract float baseSize { get; }
 
     protected void Start()
@@ -149,36 +131,25 @@ public abstract class WorldUIElement : MonoBehaviour
     
     protected bool IsInZoomRange(float distance)
     {
-        float minDistance = GetDistanceForZoomLevel(minZoomLevel);
-        float maxDistance = GetDistanceForZoomLevel(maxZoomLevel);
+        float minDistance = OrbitalCamera.GetDistanceForZoomLevel(minZoomLevel);
+        float maxDistance = OrbitalCamera.GetDistanceForZoomLevel(maxZoomLevel);
         return distance >= minDistance && distance <= maxDistance;
     }
     
     protected float GetSizeMultiplier(float distance)
     {
         // Fórmula normalizada: (distance - ground) / (medium - ground)
-        return 1 / ((distance - GetDistanceForZoomLevel(ZoomLevel.Ground)) / 
-               (GetDistanceForZoomLevel(ZoomLevel.Medium) - GetDistanceForZoomLevel(ZoomLevel.Ground)));
+        return 1 / ((distance - OrbitalCamera.GetDistanceForZoomLevel(OrbitalCamera.ZoomLevel.Ground)) / 
+               (OrbitalCamera.GetDistanceForZoomLevel(OrbitalCamera.ZoomLevel.Medium) - OrbitalCamera.GetDistanceForZoomLevel(OrbitalCamera.ZoomLevel.Ground)));
     }
     
-    private float GetDistanceForZoomLevel(ZoomLevel level)
-    {
-        switch (level)
-        {
-            case ZoomLevel.Ground: return planetLevel;
-            case ZoomLevel.Close: return closeZoomMax;
-            case ZoomLevel.Medium: return mediumZoomMax;
-            case ZoomLevel.Far: return farZoomMax;
-            case ZoomLevel.VeryFar: return veryFarZoomMax;
-            default: return 0f;
-        }
-    }
+
     
     private float CalculateZoomAlpha(float distance)
     {
         // Obtener los umbrales de distancia
-        float minDistance = GetDistanceForZoomLevel(minZoomLevel);
-        float maxDistance = GetDistanceForZoomLevel(maxZoomLevel);
+        float minDistance = OrbitalCamera.GetDistanceForZoomLevel(minZoomLevel);
+        float maxDistance = OrbitalCamera.GetDistanceForZoomLevel(maxZoomLevel);
         
         // Calcular alpha basado en la distancia
         float alpha = 1f;
@@ -224,24 +195,7 @@ public abstract class WorldUIElement : MonoBehaviour
         Destroy(gameObject);
     }
 
-    /// <summary>
-    /// Gets the current zoom level based on distance to camera
-    /// </summary>
-    public static ZoomLevel GetCurrentZoomLevel(float distance)
-    {
-        if (distance <= planetLevel)
-            return ZoomLevel.Ground;
-        else if (distance <= closeZoomMax)
-            return ZoomLevel.Close;
-        else if (distance <= mediumZoomMax)
-            return ZoomLevel.Medium;
-        else if (distance <= farZoomMax)
-            return ZoomLevel.Far;
-        else if (distance <= veryFarZoomMax)
-            return ZoomLevel.VeryFar;
-        else
-            return ZoomLevel.None;
-    }
+
 
     // Métodos abstractos que las clases derivadas deben implementar
     protected abstract Vector3 GetWorldPosition();
