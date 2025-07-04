@@ -18,7 +18,7 @@ public class ResourceIcon : WorldUIElement
     public float bobbingSpeed = 2f;
     public float bobbingAmount = 5f;
     private float bobbingTime;
-    
+
     // Propiedades para abstraer la lógica de tipo de recurso
     private bool IsNaturalResource => triangleData != null;
     private bool IsRealResource => resource != null && triangleData == null;
@@ -45,6 +45,7 @@ public class ResourceIcon : WorldUIElement
         }
     }
     
+  
     protected override Vector3 GetWorldPosition()
     {
         Vector3 basePosition = triangleData != null
@@ -70,7 +71,7 @@ public class ResourceIcon : WorldUIElement
     {
         get
         {
-            return triangleData != null ? ZoomLevel.Ground : ZoomLevel.Ground;
+            return triangleData != null ? ZoomLevel.Close : ZoomLevel.Ground;
         }
     }
     
@@ -135,9 +136,11 @@ public class ResourceIcon : WorldUIElement
         {
             CreateSimpleSprite();
         }
-        // Asegurarse de que el color se aplique siempre después de cambiar el sprite
-        image.color = tintColor;
+        
+        // Aplicar estilos primero
         ApplyResourceStyleLogic();
+        
+
     }
 
     private string GetIconNameForResourceType(ResourceType resourceType)
@@ -197,4 +200,7 @@ public class ResourceIcon : WorldUIElement
         SetSize(baseSize * 1.5f); // Más grandes
         bobbingEnabled = true; // Habilitar bobbing para recursos reales
     }
+
+    
+
 } 

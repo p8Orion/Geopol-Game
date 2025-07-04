@@ -12,6 +12,9 @@ public abstract class WorldUIElement : MonoBehaviour
 
     [Header("Visual Settings")]
     public Color tintColor = Color.white;
+    
+    [Header("Zoom Fade")]
+    public float fadeDistance = 300f; // Distancia de transición para el fade
 
     // Slots fijos para diferentes rangos de zoom
     [Header("Zoom Slots")]
@@ -119,10 +122,13 @@ public abstract class WorldUIElement : MonoBehaviour
         float dynamicSize = baseSize * GetSizeMultiplier(cameraDistanceFromCenter);
         Debug.Log("dynamicSize: " + dynamicSize);
         
-        // Aplicar visibilidad del Image en lugar de desactivar el GameObject
+        // Aplicar fade basado en zoom
         if (image != null)
         {
-            image.enabled = shouldBeVisible;
+            float alpha = CalculateZoomAlpha(cameraDistanceFromCenter);
+            Color color = image.color;
+            color.a = alpha;
+            image.color = color;
         }
         
         // Siempre procesar posición y tamaño, pero solo mostrar si es visible
@@ -166,6 +172,29 @@ public abstract class WorldUIElement : MonoBehaviour
             case ZoomLevel.VeryFar: return veryFarZoomMax;
             default: return 0f;
         }
+    }
+    
+    private float CalculateZoomAlpha(float distance)
+    {
+        // Obtener los umbrales de distancia
+        float minDistance = GetDistanceForZoomLevel(minZoomLevel);
+        float maxDistance = GetDistanceForZoomLevel(maxZoomLevel);
+        
+        // Calcular alpha basado en la distancia
+        float alpha = 1f;
+        
+        // Si está por debajo del umbral mínimo, hacer fade out
+        if (distance < minDistance)
+        {
+            alpha = Mathf.Lerp(0f, 1f, (distance - (minDistance - fadeDistance)) / fadeDistance);
+        }
+        // Si está por encima del umbral máximo, hacer fade out
+        else if (distance > maxDistance)
+        {
+            alpha = Mathf.Lerp(1f, 0f, (distance - maxDistance) / fadeDistance);
+        }
+        
+        return Mathf.Clamp01(alpha);
     }
 
     public void SetSize(float newSize)
