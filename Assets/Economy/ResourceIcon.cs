@@ -137,10 +137,8 @@ public class ResourceIcon : WorldUIElement
             CreateSimpleSprite();
         }
         
-        // Aplicar estilos primero
+        // Aplicar estilos después de cargar el sprite
         ApplyResourceStyleLogic();
-        
-
     }
 
     private string GetIconNameForResourceType(ResourceType resourceType)

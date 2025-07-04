@@ -4,9 +4,6 @@ using UnityEngine.UI;
 
 public class ResourceManager : MonoBehaviour
 {
-    [Header("Resource Icon Prefab")]
-    public GameObject resourceIconPrefab;
-    
     [Header("Canvas")]
     public Canvas worldCanvas; // Assign CanvasMundo here
     
@@ -22,30 +19,33 @@ public class ResourceManager : MonoBehaviour
     
     private float lastUpdateTime;
     
-    void Start()
+    void Awake()
     {
-        // Find CanvasMundo if not assigned
+        // Find CanvasMundo component
+        CanvasMundo canvasMundo = FindFirstObjectByType<CanvasMundo>();
+        if (canvasMundo != null)
+        {
+            worldCanvas = canvasMundo.GetCanvas();
+        }
+        
         if (worldCanvas == null)
         {
-            worldCanvas = GameObject.Find("CanvasMundo")?.GetComponent<Canvas>();
-            if (worldCanvas == null)
-            {
-                Debug.LogError("CanvasMundo not found! Please create a Canvas named 'CanvasMundo' in Screen Space - Overlay mode.");
-                return;
-            }
+            Debug.LogError("CanvasMundo not found! Please add CanvasMundo component to a GameObject.");
+            return;
         }
+        
         ConfigureCanvasMundo();
-        // Create default prefab if none assigned
-        if (resourceIconPrefab == null)
-        {
-            CreateDefaultPrefab();
-        }
+    }
+    
+    void Start()
+    {
+        // Start is now empty since we moved initialization to Awake
     }
     
     private void ConfigureCanvasMundo()
     {
         // Set render mode
-        worldCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        worldCanvas.renderMode = RenderMode.ScreenSpaceCamera;
         // Set RectTransform to cover the whole screen
         RectTransform rect = worldCanvas.GetComponent<RectTransform>();
         rect.anchorMin = Vector2.zero;
@@ -65,36 +65,47 @@ public class ResourceManager : MonoBehaviour
         UpdateAllResources();
     }
     
-    public Resource CreateResource(ResourceType type, Vector3 origin, Vector3 destination, float productionRate = 1f)
+    
+    public Resource CreateResource(ResourceType type, TriangleData originTriangle, TriangleData destinationTriangle = null)
     {
-        Resource resource = new Resource(type, origin, destination)
+        // Ensure worldCanvas is available
+        if (worldCanvas == null)
         {
-            productionRate = productionRate
-        };
+            CanvasMundo canvasMundo = FindFirstObjectByType<CanvasMundo>();
+            if (canvasMundo != null)
+            {
+                worldCanvas = canvasMundo.GetCanvas();
+            }
+            
+            if (worldCanvas == null)
+            {
+                Debug.LogError("ResourceManager: CanvasMundo not found! Cannot create resource.");
+                return null;
+            }
+        }
+        
+        // Create GameObject for the resource as child of CanvasMundo
+        GameObject resourceGO = new GameObject($"Resource_{type}");
+        resourceGO.transform.SetParent(worldCanvas.transform, false);
+        
+        // Add Resource component
+        Resource resource = resourceGO.AddComponent<Resource>();
+        
+        // Initialize the resource properties
+        resource.type = type;
+        resource.origin = originTriangle;
+        resource.destination = destinationTriangle ?? originTriangle;
+        
+        // Initialize route as direct path
+        resource.waypoints.Clear();
+        resource.waypoints.Add(originTriangle.GetCenter());
+        resource.waypoints.Add((destinationTriangle ?? originTriangle).GetCenter());
         
         activeResources.Add(resource);
-        CreateResourceIcon(resource);
         
         return resource;
     }
-    
-    public void CreateResourceIcon(Resource resource)
-    {
-        if (resourceIconPrefab == null || worldCanvas == null) return;
-        
-        // Create icon instance
-        GameObject iconObject = Instantiate(resourceIconPrefab, worldCanvas.transform);
-        ResourceIcon icon = iconObject.GetComponent<ResourceIcon>();
-        
-        if (icon != null)
-        {
-            icon.SetResource(resource);
-            // El color se maneja automáticamente en SetResource()
-            
-            // Link to resource
-            resource.iconInstance = icon;
-        }
-    }
+
     
     public void RemoveResource(Resource resource)
     {
@@ -126,14 +137,8 @@ public class ResourceManager : MonoBehaviour
                 continue;
             }
             
-            // Update resource progress (this will also update visual)
-            resource.UpdateProgress(deltaTime);
-            
-            // Remove if reached destination
-            if (resource.HasReachedDestination())
-            {
-                RemoveResource(resource);
-            }
+            // Update resource visual
+            resource.UpdateVisual();
         }
     }
     
@@ -172,48 +177,5 @@ public class ResourceManager : MonoBehaviour
         return result;
     }
     
-    private void CreateDefaultPrefab()
-    {
-        // Create a simple prefab with ResourceIcon component
-        GameObject prefab = new GameObject("ResourceIconPrefab");
-        prefab.AddComponent<ResourceIcon>();
-        
-        // Add UI components (will be configured by ResourceIcon)
-        prefab.AddComponent<RectTransform>();
-        prefab.AddComponent<CanvasRenderer>();
-        prefab.AddComponent<Image>();
-        
-        // Save as prefab (this is just for reference - you'd need to create the actual prefab in Unity)
-        resourceIconPrefab = prefab;
-        
-        Debug.Log("Created default ResourceIcon prefab. Consider creating a proper prefab in Unity.");
-    }
-    
-    // Debug methods
-    public void SpawnTestResource(ResourceType type, Vector3 position)
-    {
-        Vector3 destination = position + Random.insideUnitSphere * 5f;
-        destination.y = position.y; // Keep on same height
-        
-        CreateResource(type, position, destination, Random.Range(0.5f, 2f));
-    }
-    
-    void OnDrawGizmos()
-    {
-        // Draw resource paths in scene view
-        Gizmos.color = Color.yellow;
-        foreach (Resource resource in activeResources)
-        {
-            if (resource == null) continue;
-            
-            Vector3 currentPos = resource.GetCurrentPosition();
-            Gizmos.DrawWireSphere(currentPos, 0.1f);
-            
-            // Draw route
-            for (int i = 0; i < resource.waypoints.Count - 1; i++)
-            {
-                Gizmos.DrawLine(resource.waypoints[i], resource.waypoints[i + 1]);
-            }
-        }
-    }
+
 } 

@@ -2,42 +2,27 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public class Resource
+public class Resource : MonoBehaviour 
 {
     [Header("Resource Properties")]
     public ResourceType type;
-    public float productionRate = 1f; // Resources per minute
-    
+
     [Header("Location")]
-    public Vector3 origin;
-    public Vector3 destination;
+    public TriangleData origin;
+    public TriangleData destination;
     
     [Header("Route")]
     public List<Vector3> waypoints = new();
     public bool isActive = true;
-    public float routeProgress = 0f; // 0 to 1, represents position along route
-    
+
     [Header("Visual")]
     public ResourceIcon iconInstance;
     public bool isMoving = true;
     public bool shouldShowIcon = true;
     
-    [Header("Timing")]
-    public float spawnTime;
-    public float lastUpdateTime;
-    
-    public Resource(ResourceType resourceType, Vector3 startPos, Vector3 endPos)
-    {
-        type = resourceType;
-        origin = startPos;
-        destination = endPos;
-        spawnTime = Time.time;
-        lastUpdateTime = Time.time;
-        
-        // Initialize route as direct path
-        waypoints.Add(origin);
-        waypoints.Add(destination);
-    }
+
+    // Constructor removed - MonoBehaviour cannot have custom constructors
+    // Use ResourceManager.CreateResource() instead
     
     public void AddWaypoint(Vector3 waypoint, bool permanent = false)
     {
@@ -56,54 +41,13 @@ public class Resource
     
     public Vector3 GetCurrentPosition()
     {
-        if (waypoints.Count < 2) return origin;
+        if (waypoints.Count < 2) return origin != null ? origin.GetCenter() : Vector3.zero;
         
-        // Calculate total route length
-        float totalLength = 0f;
-        for (int i = 0; i < waypoints.Count - 1; i++)
-        {
-            totalLength += Vector3.Distance(waypoints[i], waypoints[i + 1]);
-        }
-        
-        // Calculate current position based on progress
-        float targetDistance = totalLength * routeProgress;
-        float currentDistance = 0f;
-        
-        for (int i = 0; i < waypoints.Count - 1; i++)
-        {
-            float segmentLength = Vector3.Distance(waypoints[i], waypoints[i + 1]);
-            if (currentDistance + segmentLength >= targetDistance)
-            {
-                // We're in this segment
-                float segmentProgress = (targetDistance - currentDistance) / segmentLength;
-                return Vector3.Lerp(waypoints[i], waypoints[i + 1], segmentProgress);
-            }
-            currentDistance += segmentLength;
-        }
-        
-        return destination;
+        // For now, just return origin position
+        return origin != null ? origin.GetCenter() : Vector3.zero;
     }
-    
-    public void UpdateProgress(float deltaTime)
-    {
-        if (!isActive || !isMoving) return;
-        
-        // Move along route based on production rate
-        float speed = productionRate / 60f; // Convert per minute to per second
-        routeProgress += speed * deltaTime;
-        
-        if (routeProgress >= 1f)
-        {
-            routeProgress = 1f;
-            isMoving = false;
-        }
-        
-        lastUpdateTime = Time.time;
-        
-        // Update visual representation
-        UpdateVisual();
-    }
-    
+
+
     public void UpdateVisual()
     {
         // Create icon if it doesn't exist and we should show it
@@ -124,21 +68,28 @@ public class Resource
     {
         // Create a GameObject for the icon
         GameObject iconGO = new GameObject($"ResourceIcon_{type}");
-        iconGO.transform.position = GetCurrentPosition();
         
         // Add ResourceIcon component
         ResourceIcon icon = iconGO.AddComponent<ResourceIcon>();
-        icon.SetResource(this);
-        // No llamar SetTint() - SetResource() ya maneja el estilo
         
-        // Store reference
-        iconInstance = icon;
+        // Set the resource reference first
+        icon.SetResource(this);
+        
+        // Ensure the icon is properly initialized
+        if (icon != null)
+        {
+            // Store reference
+            iconInstance = icon;
+            
+            // Set initial visibility
+            icon.SetVisible(shouldShowIcon && isActive);
+            
+            Debug.Log($"ResourceIcon created successfully for {type} at position {GetCurrentPosition()}");
+        }
+
     }
     
-    public bool HasReachedDestination()
-    {
-        return routeProgress >= 1f;
-    }
+
     
     public void Deactivate()
     {
@@ -160,18 +111,10 @@ public class Resource
         UpdateVisual();
     }
     
-    public float GetRouteLength()
-    {
-        float length = 0f;
-        for (int i = 0; i < waypoints.Count - 1; i++)
-        {
-            length += Vector3.Distance(waypoints[i], waypoints[i + 1]);
-        }
-        return length;
-    }
+
     
     public override string ToString()
     {
-        return $"{type.GetEmoji()} {type.GetDisplayName()} - Progress: {routeProgress:P0}";
+        return $"{type.GetEmoji()} {type.GetDisplayName()}";
     }
 } 

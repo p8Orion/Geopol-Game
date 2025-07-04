@@ -26,11 +26,11 @@ public class MapEditor : MonoBehaviour
     public IDPicker idPicker;
     public Camera editorCamera;
     public TriangleDataSaver triangleDataSaver;
+    public ResourceManager resourceManager;
 
     [Header("Brush Settings")]
     public int selectedTerrainType = 0;
     public float brushSize = 200.0f; 
-    public float brushFalloff = 0.5f;
     public bool useFalloff = true;
 
     [Header("Country Settings")]
@@ -107,6 +107,7 @@ public class MapEditor : MonoBehaviour
         if (idPicker == null) idPicker = UnityEngine.Object.FindFirstObjectByType<IDPicker>();
         if (editorCamera == null) editorCamera = Camera.main;
         if (triangleDataSaver == null) triangleDataSaver = UnityEngine.Object.FindFirstObjectByType<TriangleDataSaver>();
+        if (resourceManager == null) resourceManager = UnityEngine.Object.FindFirstObjectByType<ResourceManager>();
 
         // Initialize preview materials
         InitializePreviewMaterials();
@@ -362,13 +363,6 @@ public class MapEditor : MonoBehaviour
         GUILayout.EndHorizontal();
         
         useFalloff = GUILayout.Toggle(useFalloff, "Enable Brush Falloff");
-        if (useFalloff)
-        {
-            GUILayout.BeginHorizontal();
-            GUILayout.Label($"Falloff: {brushFalloff:F2}", GUILayout.Width(100));
-            brushFalloff = GUILayout.HorizontalSlider(brushFalloff, 0.1f, 1.0f);
-            GUILayout.EndHorizontal();
-        }
         
         GUILayout.Space(10);
 
@@ -669,10 +663,12 @@ public class MapEditor : MonoBehaviour
         bool startPaint = useNewInputSystem ? (mouse != null && mouse.leftButton.wasPressedThisFrame) : Input.GetMouseButtonDown(0);
         bool painting = useNewInputSystem ? (mouse != null && mouse.leftButton.isPressed) : Input.GetMouseButton(0);
         bool endPaint = useNewInputSystem ? (mouse != null && mouse.leftButton.wasReleasedThisFrame) : Input.GetMouseButtonUp(0);
+        bool rightClick = useNewInputSystem ? (mouse != null && mouse.rightButton.wasPressedThisFrame) : Input.GetMouseButtonDown(1);
 
         if (startPaint) StartPainting();
         else if (painting) ContinuePainting();
         else if (endPaint) StopPainting();
+        else if (rightClick) HandleRightClick();
 
         bool decreaseBrush = useNewInputSystem ? (keyboard != null && keyboard.leftBracketKey.wasPressedThisFrame) : Input.GetKeyDown(KeyCode.LeftBracket);
         bool increaseBrush = useNewInputSystem ? (keyboard != null && keyboard.rightBracketKey.wasPressedThisFrame) : Input.GetKeyDown(KeyCode.RightBracket);
@@ -794,6 +790,57 @@ public class MapEditor : MonoBehaviour
         UpdateStatus($"Finished painting. Modified {originalTerrainTypes.Count} unique triangles. Click 'Apply' to finalize.");
     }
     
+    void HandleRightClick()
+    {
+        Debug.Log("MapEditor: Right click detected");
+        if (currentMode == EditorMode.Resources)
+        {
+            Debug.Log("MapEditor: Right click in Resources mode - creating resource");
+            CreateResourceAtPosition();
+        }
+        else
+        {
+            Debug.Log($"MapEditor: Right click in {currentMode} mode - ignored");
+        }
+    }
+    
+    void CreateResourceAtPosition()
+    {
+        if (resourceManager == null)
+        {
+            UpdateStatus("Error: ResourceManager not found!");
+            return;
+        }
+        
+        if (selectedResourceType == ResourceType.None)
+        {
+            UpdateStatus("Please select a resource type first.");
+            return;
+        }
+        
+        Vector3 paintPosition = GetPaintPosition();
+        if (paintPosition == Vector3.zero)
+        {
+            UpdateStatus("No valid triangle selected for resource creation.");
+            return;
+        }
+        
+        // Get the triangle data
+        int triangleId = idPicker.GetSelectedTriangleID();
+        if (triangleId == -1 || triangleId >= icoSphere.triangleDataList.Count)
+        {
+            UpdateStatus("Invalid triangle ID for resource creation.");
+            return;
+        }
+        
+        var triangle = icoSphere.triangleDataList[triangleId];
+        
+        // Create the resource using ResourceManager
+        Resource newResource = resourceManager.CreateResource(selectedResourceType, triangle);
+        
+        UpdateStatus($"Created {selectedResourceType.GetEmoji()} {selectedResourceType.GetDisplayName()} resource at triangle {triangleId}");
+    }
+    
     Vector3 GetPaintPosition()
     {
         if (idPicker == null)
@@ -851,7 +898,6 @@ public class MapEditor : MonoBehaviour
                 {
                     float distance = Mathf.Sqrt(distanceSquared);
                     strength = 1f - Mathf.Clamp01(distance / brushSize);
-                    strength = Mathf.Pow(strength, brushFalloff * 2);
                 }
                 
                 if (strength > 0.1f)
@@ -1520,7 +1566,6 @@ public class MapEditor : MonoBehaviour
                     {
                         float distance = Mathf.Sqrt(distanceSquared);
                         strength = 1f - Mathf.Clamp01(distance / brushSize);
-                        strength = Mathf.Pow(strength, brushFalloff * 2);
                     }
                     
                     if (strength > 0.1f)

@@ -30,40 +30,17 @@ public abstract class WorldUIElement : MonoBehaviour
 
     private void SetupCanvas()
     {
-        // Buscar o crear CanvasMundo
-        GameObject canvasGO = GameObject.Find("CanvasMundo");
-        if (canvasGO == null)
+        // Find CanvasMundo component
+        CanvasMundo canvasMundoComponent = FindFirstObjectByType<CanvasMundo>();
+        if (canvasMundoComponent != null)
         {
-            canvasGO = new GameObject("CanvasMundo");
-            canvasMundo = canvasGO.AddComponent<Canvas>();
-            canvasMundo.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvasMundo.worldCamera = Camera.main;
-            canvasMundo.planeDistance = 1f;
-            
-            // Configurar blending para transparencia
-            var canvasGroup = canvasGO.AddComponent<CanvasGroup>();
-            canvasGroup.alpha = 1f;
-            
-            RectTransform rect = canvasGO.GetComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = Vector2.zero;
-            canvasGO.AddComponent<CanvasScaler>();
-            canvasGO.AddComponent<GraphicRaycaster>();
-            Debug.Log("WorldUIElement: CanvasMundo creado y configurado como Screen Space - Camera con transparencia.");
+            canvasMundo = canvasMundoComponent.GetCanvas();
         }
         else
         {
+            // Fallback to direct search (for backward compatibility)
+            GameObject canvasGO = GameObject.Find("CanvasMundo");
             canvasMundo = canvasGO.GetComponent<Canvas>();
-            // Asegurar que tenga la configuración correcta para transparencia
-            if (canvasMundo.renderMode == RenderMode.ScreenSpaceOverlay)
-            {
-                canvasMundo.renderMode = RenderMode.ScreenSpaceCamera;
-                canvasMundo.worldCamera = Camera.main;
-                canvasMundo.planeDistance = 1f;
-            }
         }
         
         // Hacerse hijo del canvas
@@ -102,7 +79,6 @@ public abstract class WorldUIElement : MonoBehaviour
         // Determinar visibilidad y tamaño basado en la distancia de la cámara al centro
         bool shouldBeVisible = IsInZoomRange(cameraDistanceFromCenter);
         float dynamicSize = baseSize * GetSizeMultiplier(cameraDistanceFromCenter);
-        Debug.Log("dynamicSize: " + dynamicSize);
         
         // Aplicar fade basado en zoom
         if (image != null)
