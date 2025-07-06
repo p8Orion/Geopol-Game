@@ -170,7 +170,6 @@ public class ResourceIcon : WorldUIElement
         
         // Aplicar estilos después de cargar el sprite
         ApplyResourceStyleLogic();
-        UpdateShaderProperties();
     }
 
     private string GetIconNameForResourceType(ResourceType resourceType)
@@ -206,7 +205,6 @@ public class ResourceIcon : WorldUIElement
     private void ApplyNaturalResourceStyle()
     {
         // Estilo para recursos naturales (fijos en el terreno)
-        SetSize(baseSize * 0.8f); // Más pequeños
         bobbingEnabled = false; // Deshabilitar bobbing para recursos naturales
         UpdateShaderProperties();
     }
@@ -214,7 +212,6 @@ public class ResourceIcon : WorldUIElement
     private void ApplyRealResourceStyle()
     {
         // Estilo para recursos reales (en movimiento)
-        SetSize(baseSize * 1.5f); // Más grandes
         bobbingEnabled = true; // Habilitar bobbing para recursos reales
         UpdateShaderProperties();
     }
@@ -240,18 +237,18 @@ public class ResourceIcon : WorldUIElement
             // Actualizar propiedades del shader directamente en el material
             resourceIconMaterial.SetColor("_Color", tintColor);
             resourceIconMaterial.SetFloat("_Brightness", isSelected ? 1.2f : 1.0f);
-            resourceIconMaterial.SetFloat("_PulseSpeed", bobbingEnabled ? 2.0f : 0.0f);
-            resourceIconMaterial.SetFloat("_PulseAmount", isSelected ? 0.15f : 0.05f);
+            resourceIconMaterial.SetFloat("_PulseSpeed", isSelected ? 5.0f : 0.0f);
+            resourceIconMaterial.SetFloat("_PulseAmount", isSelected ? 0.5f : 0.05f);
             resourceIconMaterial.SetColor("_OutlineColor", Color.black);
-            resourceIconMaterial.SetFloat("_OutlineWidth", isSelected ? 0.03f : 0.00f);
-            resourceIconMaterial.SetFloat("_GlowIntensity", isSelected ? 0.2f : 0.00f);
+            resourceIconMaterial.SetFloat("_OutlineWidth", IsNaturalResource ? 0.00f : 0.05f);
+            resourceIconMaterial.SetFloat("_GlowIntensity", isSelected ? 0.00f : 0.00f);
             resourceIconMaterial.SetColor("_GlowColor", tintColor);
             
             // Aplicar opacity y saturation según el tipo de recurso
             if (IsNaturalResource)
             {
-                resourceIconMaterial.SetFloat("_Opacity", 0.7f);
-                resourceIconMaterial.SetFloat("_Saturation", 0.5f);
+                resourceIconMaterial.SetFloat("_Opacity", 0.6f);
+                resourceIconMaterial.SetFloat("_Saturation", 0.6f);
             }
             else if (IsRealResource)
             {

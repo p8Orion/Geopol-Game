@@ -98,16 +98,16 @@ public static class ResourceTypeExtensions
             ResourceType.Cereal => Color.yellow,
             ResourceType.Fish => Color.cyan,
             ResourceType.FreshWater => Color.blue,
-            ResourceType.Iron => Color.gray,
-            ResourceType.IndustrialGoods => Color.orange,
-            ResourceType.ConsumerGoods => Color.magenta,
-            ResourceType.NavalMaterials => Color.blue,
-            ResourceType.HighTech => Color.cyan,
-            ResourceType.Hydrocarbons => Color.black,
+            ResourceType.Iron => new Color(0.6f, 0.4f, 0.4f), // Reddish gray
+            ResourceType.IndustrialGoods => new Color(0.2f, 0.2f, 0.2f), // Dark grey
+            ResourceType.ConsumerGoods => Color.brown,
+            ResourceType.NavalMaterials => new Color(0.7f, 0.8f, 0.8f), // Celeste grisáceo
+            ResourceType.HighTech => Color.green,
+            ResourceType.Hydrocarbons => Color.red,
             ResourceType.Electricity => Color.yellow,
-            ResourceType.RareEarths => Color.green,
-            ResourceType.Uranium => Color.green,
-            ResourceType.Gold => Color.yellow,
+            ResourceType.RareEarths => new Color(0.7f, 0.8f, 0.5f), // Yellowish green gray
+            ResourceType.Uranium => Color.yellow,
+            ResourceType.Gold => Color.gold,
             _ => Color.white
         };
     }
