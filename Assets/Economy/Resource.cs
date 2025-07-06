@@ -6,6 +6,7 @@ public class Resource : MonoBehaviour
 {
     [Header("Resource Properties")]
     public ResourceType type;
+    public Country owner;
 
     [Header("Location")]
     public TriangleData origin;
@@ -20,6 +21,9 @@ public class Resource : MonoBehaviour
     public bool isMoving = true;
     public bool shouldShowIcon = true;
     
+    [Header("Selection")]
+    public bool isSelected = false;
+    public bool isSelectable = true;
 
     // Constructor removed - MonoBehaviour cannot have custom constructors
     // Use ResourceManager.CreateResource() instead
@@ -89,6 +93,18 @@ public class Resource : MonoBehaviour
 
     }
     
+    public void SetSelected(bool selected)
+    {
+        if (!isSelectable) return;
+        
+        isSelected = selected;
+        UpdateVisual();
+    }
+    
+    public void ToggleSelection()
+    {
+        SetSelected(!isSelected);
+    }
 
     
     public void Deactivate()
@@ -111,6 +127,14 @@ public class Resource : MonoBehaviour
         UpdateVisual();
     }
     
+    public void SetSelectable(bool selectable)
+    {
+        isSelectable = selectable;
+        if (!selectable && isSelected)
+        {
+            SetSelected(false);
+        }
+    }
 
     
     public override string ToString()

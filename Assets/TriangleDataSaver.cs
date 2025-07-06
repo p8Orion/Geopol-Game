@@ -42,6 +42,8 @@ public class SerializableColor
     }
 }
 
+
+
 [System.Serializable]
 public class TriangleDataSave
 {
@@ -54,6 +56,9 @@ public class TriangleDataSave
     public List<float> vertices; 
     public List<int> terrainTypes;
     
+    [Header("Natural Resources")]
+    public List<int> naturalResourceTypes; // ResourceType enum values for each triangle
+    
     [Header("Country Data")]
     public List<string> countryNames; // Names of countries for reference
     public List<int> countryIndices; // Index of country for each triangle (-1 for unclaimed)
@@ -62,6 +67,9 @@ public class TriangleDataSave
     [Header("Adjacency Data")]
     public List<int> adjacentTriangleIndices; 
     public List<int> adjacencyListEndIndices;
+    
+    [Header("Active Resources")]
+    public List<ResourceSaveData> activeResources = new();
 }
 
 [System.Serializable]
@@ -172,11 +180,13 @@ public class TriangleDataSaver : MonoBehaviour
                 subdivisions = icoSphere.subdivisions,
                 vertices = new List<float>(),
                 terrainTypes = new List<int>(),
+                naturalResourceTypes = new List<int>(),
                 countryNames = new List<string>(),
                 countryIndices = new List<int>(),
                 countryColors = new List<SerializableColor>(),
                 adjacentTriangleIndices = new List<int>(),
-                adjacencyListEndIndices = new List<int>()
+                adjacencyListEndIndices = new List<int>(),
+                activeResources = new List<ResourceSaveData>()
             };
 
             // Get all unique country names for reference
@@ -205,6 +215,7 @@ public class TriangleDataSaver : MonoBehaviour
                 dataToSave.vertices.Add(tri.b.x); dataToSave.vertices.Add(tri.b.y); dataToSave.vertices.Add(tri.b.z);
                 dataToSave.vertices.Add(tri.c.x); dataToSave.vertices.Add(tri.c.y); dataToSave.vertices.Add(tri.c.z);
                 dataToSave.terrainTypes.Add(tri.terrainType);
+                dataToSave.naturalResourceTypes.Add((int)tri.naturalResource);
                 
                 // Save country index (-1 for unclaimed)
                 if (tri.country != null && countryNameMap.ContainsKey(tri.country.name))
@@ -223,6 +234,30 @@ public class TriangleDataSaver : MonoBehaviour
             }
             
             Debug.Log($"TriangleDataSaver: Saved {countryTriangleCount} triangles with country assignments out of {icoSphere.triangleDataList.Count} total");
+
+            // Save active resources from ResourceManager
+            var resourceManager = UnityEngine.Object.FindFirstObjectByType<ResourceManager>();
+            if (resourceManager != null)
+            {
+                var activeResources = resourceManager.GetAllActiveResources();
+                foreach (var resource in activeResources)
+                {
+                    if (resource != null && resource.origin != null)
+                    {
+                        var resourceData = new ResourceSaveData
+                        {
+                            type = resource.type,
+                            originTriangleId = resource.origin.id,
+                            destinationTriangleId = resource.destination != null ? resource.destination.id : resource.origin.id,
+                            isActive = resource.isActive,
+                            isMoving = resource.isMoving,
+                            shouldShowIcon = resource.shouldShowIcon
+                        };
+                        dataToSave.activeResources.Add(resourceData);
+                    }
+                }
+                Debug.Log($"TriangleDataSaver: Saved {dataToSave.activeResources.Count} active resources");
+            }
 
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
@@ -330,10 +365,14 @@ public class TriangleDataSaver : MonoBehaviour
                 saveData.countryIndices = Enumerable.Repeat(-1, saveData.totalTriangles).ToList();
             if (saveData.countryColors == null)
                 saveData.countryColors = new List<SerializableColor>();
+            if (saveData.naturalResourceTypes == null)
+                saveData.naturalResourceTypes = Enumerable.Repeat(0, saveData.totalTriangles).ToList(); // Default to ResourceType.None
             if (saveData.adjacentTriangleIndices == null)
                 saveData.adjacentTriangleIndices = new List<int>();
             if (saveData.adjacencyListEndIndices == null)
                 saveData.adjacencyListEndIndices = new List<int>();
+            if (saveData.activeResources == null)
+                saveData.activeResources = new List<ResourceSaveData>();
             
             Debug.Log($"TriangleDataSaver: Loading {saveData.countryNames.Count} countries: {string.Join(", ", saveData.countryNames)}");
             
@@ -352,6 +391,10 @@ public class TriangleDataSaver : MonoBehaviour
                 tri.c = new Vector3(saveData.vertices[vertIndex+6], saveData.vertices[vertIndex+7], saveData.vertices[vertIndex+8]);
 
                 tri.terrainType = saveData.terrainTypes[i];
+                tri.naturalResource = (ResourceType)saveData.naturalResourceTypes[i];
+
+                // Regenerate resource icon after loading
+                tri.RegenerateResourceIcon();
 
                 // Restore country assignment
                 int countryIndex = saveData.countryIndices[i];
@@ -420,6 +463,16 @@ public class TriangleDataSaver : MonoBehaviour
             // Restore country relationships to ensure bidirectional links are maintained
             RestoreCountryRelationships(loadedTriangles);
             
+            // Restore active resources
+            RestoreActiveResources(saveData.activeResources, loadedTriangles);
+            
+            // Rebuild auxiliary data structures in ResourceManager
+            var resourceManager = UnityEngine.Object.FindFirstObjectByType<ResourceManager>();
+            if (resourceManager != null)
+            {
+                resourceManager.RebuildAuxiliaryDataStructures();
+            }
+            
             // Set the radius and subdivisions from save data
             icoSphere.radius = saveData.sphereRadius;
             icoSphere.subdivisions = saveData.subdivisions;
@@ -465,6 +518,60 @@ public class TriangleDataSaver : MonoBehaviour
             }
         }
         Debug.Log($"TriangleDataSaver: Restored {restoredCount} country-territory relationships");
+    }
+    
+    /// <summary>
+    /// Restores active resources from save data
+    /// </summary>
+    private void RestoreActiveResources(List<ResourceSaveData> savedResources, List<TriangleData> triangles)
+    {
+        var resourceManager = UnityEngine.Object.FindFirstObjectByType<ResourceManager>();
+        if (resourceManager == null)
+        {
+            Debug.LogWarning("TriangleDataSaver: ResourceManager not found, cannot restore active resources");
+            return;
+        }
+        
+        // Clear existing resources
+        resourceManager.ClearAllResources();
+        
+        int restoredCount = 0;
+        foreach (var resourceData in savedResources)
+        {
+            // Find origin and destination triangles
+            TriangleData originTriangle = null;
+            TriangleData destinationTriangle = null;
+            
+            if (resourceData.originTriangleId >= 0 && resourceData.originTriangleId < triangles.Count)
+            {
+                originTriangle = triangles[resourceData.originTriangleId];
+            }
+            
+            if (resourceData.destinationTriangleId >= 0 && resourceData.destinationTriangleId < triangles.Count)
+            {
+                destinationTriangle = triangles[resourceData.destinationTriangleId];
+            }
+            
+            if (originTriangle != null)
+            {
+                // Create the resource
+                var resource = resourceManager.CreateResource(resourceData.type, originTriangle, destinationTriangle);
+                
+                if (resource != null)
+                {
+                    // Restore resource properties
+                    resource.isActive = resourceData.isActive;
+                    resource.isMoving = resourceData.isMoving;
+                    resource.shouldShowIcon = resourceData.shouldShowIcon;
+                    
+
+                    
+                    restoredCount++;
+                }
+            }
+        }
+        
+        Debug.Log($"TriangleDataSaver: Restored {restoredCount} active resources");
     }
     
     public void GetSaveFileInfo()

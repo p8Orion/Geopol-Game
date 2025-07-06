@@ -480,6 +480,12 @@ public class MapEditor : MonoBehaviour
                 SelectResourceType(ResourceType.None);
             }
             GUI.backgroundColor = Color.white;
+            
+            // Add controls legend
+            GUILayout.Space(10);
+            GUILayout.Label("Controls:", EditorStyles.boldLabel);
+            GUILayout.Label("• Left Click: Paint natural resources", EditorStyles.wordWrappedLabel);
+            GUILayout.Label("• Space: Create real resource at cursor", EditorStyles.wordWrappedLabel);
         }
 
         // --- Terrain Selection Section ---
@@ -663,12 +669,12 @@ public class MapEditor : MonoBehaviour
         bool startPaint = useNewInputSystem ? (mouse != null && mouse.leftButton.wasPressedThisFrame) : Input.GetMouseButtonDown(0);
         bool painting = useNewInputSystem ? (mouse != null && mouse.leftButton.isPressed) : Input.GetMouseButton(0);
         bool endPaint = useNewInputSystem ? (mouse != null && mouse.leftButton.wasReleasedThisFrame) : Input.GetMouseButtonUp(0);
-        bool rightClick = useNewInputSystem ? (mouse != null && mouse.rightButton.wasPressedThisFrame) : Input.GetMouseButtonDown(1);
+        bool spacePressed = useNewInputSystem ? (keyboard != null && keyboard.spaceKey.wasPressedThisFrame) : Input.GetKeyDown(KeyCode.Space);
 
         if (startPaint) StartPainting();
         else if (painting) ContinuePainting();
         else if (endPaint) StopPainting();
-        else if (rightClick) HandleRightClick();
+        else if (spacePressed) HandleSpaceKey();
 
         bool decreaseBrush = useNewInputSystem ? (keyboard != null && keyboard.leftBracketKey.wasPressedThisFrame) : Input.GetKeyDown(KeyCode.LeftBracket);
         bool increaseBrush = useNewInputSystem ? (keyboard != null && keyboard.rightBracketKey.wasPressedThisFrame) : Input.GetKeyDown(KeyCode.RightBracket);
@@ -790,17 +796,17 @@ public class MapEditor : MonoBehaviour
         UpdateStatus($"Finished painting. Modified {originalTerrainTypes.Count} unique triangles. Click 'Apply' to finalize.");
     }
     
-    void HandleRightClick()
+    void HandleSpaceKey()
     {
-        Debug.Log("MapEditor: Right click detected");
+        Debug.Log("MapEditor: Space key pressed");
         if (currentMode == EditorMode.Resources)
         {
-            Debug.Log("MapEditor: Right click in Resources mode - creating resource");
+            Debug.Log("MapEditor: Space key in Resources mode - creating resource");
             CreateResourceAtPosition();
         }
         else
         {
-            Debug.Log($"MapEditor: Right click in {currentMode} mode - ignored");
+            Debug.Log($"MapEditor: Space key in {currentMode} mode - ignored");
         }
     }
     

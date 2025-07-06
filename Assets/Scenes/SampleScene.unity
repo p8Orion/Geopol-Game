@@ -1575,13 +1575,13 @@ MonoBehaviour:
     previewColor: {r: 0, g: 0.1187284, b: 1, a: 1}
     id: 10
     terrainType: 0
-  splatMapResolution: 2048
+  splatMapResolution: 4096
   borderNoiseStrength: 0.4
   borderNoiseScale: 0.25
   borderDepth: 5
   tilingScale: 30
   terrainCount: 11
-  enableBlur: 1
+  enableBlur: 0
   blurRadius: 1
   oceanTerrainIDs: 0b0000000a000000
   excludeOceanFromBorderNoise: 0

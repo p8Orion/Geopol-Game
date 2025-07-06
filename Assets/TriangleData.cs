@@ -13,8 +13,15 @@ public class TriangleData
     
     [Header("Natural Resources")]
     public ResourceType naturalResource = ResourceType.None; // None means no resource assigned
+    
     [System.NonSerialized]
     public ResourceIcon resourceIcon; // Visual representation of the resource
+
+    [Header("Resource Origins/Destinations")]
+    [System.NonSerialized]
+    public List<Resource> resourcesOriginatingFrom = new();
+    [System.NonSerialized]
+    public List<Resource> resourcesDestinedTo = new();
 
     [Header("Country Assignment")]
     [NonSerialized]
@@ -188,6 +195,25 @@ public class TriangleData
         else
         {
             // Create new icon if needed
+            CreateResourceIcon();
+        }
+    }
+    
+    /// <summary>
+    /// Regenerates the resource icon after loading from save
+    /// </summary>
+    public void RegenerateResourceIcon()
+    {
+        // Destroy any existing icon first
+        if (resourceIcon != null)
+        {
+            resourceIcon.DestroyIcon();
+            resourceIcon = null;
+        }
+        
+        // Create new icon if there's a natural resource
+        if (naturalResource != ResourceType.None)
+        {
             CreateResourceIcon();
         }
     }

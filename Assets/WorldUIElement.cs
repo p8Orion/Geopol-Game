@@ -1,7 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
-public abstract class WorldUIElement : MonoBehaviour
+public abstract class WorldUIElement : MonoBehaviour, IPointerClickHandler
 {
     [Header("Components")]
     protected RectTransform rectTransform;
@@ -16,6 +17,9 @@ public abstract class WorldUIElement : MonoBehaviour
     [Header("Zoom Fade")]
     public float fadeDistance = 300f; // Distancia de transición para el fade
     
+    [Header("Click Handling")]
+    public bool isClickable = true;
+    
     // Las clases derivadas deben definir estos valores
     protected abstract OrbitalCamera.ZoomLevel minZoomLevel { get; }
     protected abstract OrbitalCamera.ZoomLevel maxZoomLevel { get; }
@@ -25,6 +29,7 @@ public abstract class WorldUIElement : MonoBehaviour
     {
         SetupCanvas();
         SetupComponents();
+        SetupClickHandling();
         OnStart();
     }
 
@@ -65,6 +70,29 @@ public abstract class WorldUIElement : MonoBehaviour
         
         rectTransform.sizeDelta = new Vector2(baseSize, baseSize);
         mainCamera = Camera.main;
+    }
+    
+    private void SetupClickHandling()
+    {
+        // Habilitar raycast target para que funcione el click
+        if (image != null)
+        {
+            image.raycastTarget = isClickable;
+        }
+        
+        // Agregar Button component para mejor manejo de clicks
+        if (isClickable)
+        {
+            Button button = GetComponent<Button>();
+            if (button == null)
+            {
+                button = gameObject.AddComponent<Button>();
+            }
+            
+            // Configurar el button para que no tenga transición visual
+            button.transition = Selectable.Transition.None;
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+        }
     }
 
     protected void Update()
@@ -170,8 +198,29 @@ public abstract class WorldUIElement : MonoBehaviour
     {
         Destroy(gameObject);
     }
-
-
+    
+    public void SetClickable(bool clickable)
+    {
+        isClickable = clickable;
+        if (image != null)
+        {
+            image.raycastTarget = clickable;
+        }
+    }
+    
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (!isClickable) return;
+        
+        OnClicked();
+    }
+    
+    // Método virtual que las clases derivadas pueden sobrescribir
+    protected virtual void OnClicked()
+    {
+        // Comportamiento por defecto: no hacer nada
+        // Las clases derivadas pueden sobrescribir para manejar clicks
+    }
 
     // Métodos abstractos que las clases derivadas deben implementar
     protected abstract Vector3 GetWorldPosition();
