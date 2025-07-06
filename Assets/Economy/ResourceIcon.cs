@@ -237,8 +237,8 @@ public class ResourceIcon : WorldUIElement
             // Actualizar propiedades del shader directamente en el material
             resourceIconMaterial.SetColor("_Color", tintColor);
             resourceIconMaterial.SetFloat("_Brightness", isSelected ? 1.2f : 1.0f);
-            resourceIconMaterial.SetFloat("_PulseSpeed", isSelected ? 5.0f : 0.0f);
-            resourceIconMaterial.SetFloat("_PulseAmount", isSelected ? 0.5f : 0.05f);
+            resourceIconMaterial.SetFloat("_PulseSpeed", isSelected ? 2.0f : 0.0f);
+            resourceIconMaterial.SetFloat("_PulseAmount", isSelected ? 0.7f : 0.00f);
             resourceIconMaterial.SetColor("_OutlineColor", Color.black);
             resourceIconMaterial.SetFloat("_OutlineWidth", IsNaturalResource ? 0.00f : 0.05f);
             resourceIconMaterial.SetFloat("_GlowIntensity", isSelected ? 0.00f : 0.00f);

@@ -76,17 +76,29 @@ Shader "Custom/ResourceIcon"
 
             fixed4 frag(v2f IN) : SV_Target
             {
-                // Sample texture with offset for outline
-                fixed4 outline = tex2D(_MainTex, IN.texcoord + float2(_OutlineWidth, 0)) +
-                                tex2D(_MainTex, IN.texcoord + float2(-_OutlineWidth, 0)) +
-                                tex2D(_MainTex, IN.texcoord + float2(0, _OutlineWidth)) +
-                                tex2D(_MainTex, IN.texcoord + float2(0, -_OutlineWidth));
+                // Sample texture with multiple offsets for smooth outline
+                float2 offsets[8];
+                offsets[0] = float2(_OutlineWidth, 0);
+                offsets[1] = float2(-_OutlineWidth, 0);
+                offsets[2] = float2(0, _OutlineWidth);
+                offsets[3] = float2(0, -_OutlineWidth);
+                offsets[4] = float2(_OutlineWidth * 0.707, _OutlineWidth * 0.707);
+                offsets[5] = float2(-_OutlineWidth * 0.707, _OutlineWidth * 0.707);
+                offsets[6] = float2(_OutlineWidth * 0.707, -_OutlineWidth * 0.707);
+                offsets[7] = float2(-_OutlineWidth * 0.707, -_OutlineWidth * 0.707);
+                
+                float outlineAlpha = 0;
+                for (int i = 0; i < 8; i++)
+                {
+                    outlineAlpha += tex2D(_MainTex, IN.texcoord + offsets[i]).a;
+                }
+                outlineAlpha /= 8.0;
                 
                 // Main texture
                 fixed4 c = tex2D(_MainTex, IN.texcoord) * IN.color;
                 
-                // Apply outline - only where there's no main texture
-                float outlineMask = outline.a * (1.0 - c.a);
+                // Apply smooth outline - only where there's no main texture
+                float outlineMask = outlineAlpha * (1.0 - c.a);
                 c.rgb = lerp(_OutlineColor.rgb, c.rgb, c.a);
                 c.a = max(c.a, outlineMask);
                 

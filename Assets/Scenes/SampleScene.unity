@@ -1582,7 +1582,7 @@ MonoBehaviour:
   tilingScale: 30
   terrainCount: 11
   enableBlur: 0
-  blurRadius: 1
+  blurRadius: 0
   oceanTerrainIDs: 0b0000000a000000
   excludeOceanFromBorderNoise: 0
   excludeOceanFromBorderBlur: 1
