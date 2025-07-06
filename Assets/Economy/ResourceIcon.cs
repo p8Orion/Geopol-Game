@@ -23,11 +23,8 @@ public class ResourceIcon : WorldUIElement
     public bool isSelected = false;
     public bool isSelectable = true;
     
-    [Header("Selection Outline")]
-    public Color selectionOutlineColor = Color.black;
-    public float outlineScale = 1.1f;
-    public float outlineOffset = 0.1f;
-    private Image outlineImage;
+    [Header("Shader Settings")]
+    public Material resourceIconMaterial;
 
     // Propiedades para abstraer la lógica de tipo de recurso
     private bool IsNaturalResource => triangleData != null;
@@ -77,8 +74,8 @@ public class ResourceIcon : WorldUIElement
     
     protected override void OnStart()
     {
-        CreateOutlineImage();
         SetupResourceSpecifics();
+        SetupShader();
         UpdateSprite();
     }
     
@@ -97,48 +94,7 @@ public class ResourceIcon : WorldUIElement
         }
     }
     
-    private void CreateOutlineImage()
-    {
-        // Crear GameObject hijo para el outline
-        GameObject outlineGO = new GameObject("SelectionOutline");
-        outlineGO.transform.SetParent(transform);
-        outlineGO.transform.localPosition = Vector3.zero;
-        outlineGO.transform.localRotation = Quaternion.identity;
-        outlineGO.transform.localScale = Vector3.one * outlineScale;
-        
-        // Agregar Image component para el outline
-        outlineImage = outlineGO.AddComponent<Image>();
-        outlineImage.color = selectionOutlineColor;
-        outlineImage.raycastTarget = false;
-        
-        // Configurar el RectTransform del outline
-        RectTransform outlineRect = outlineImage.rectTransform;
-        outlineRect.anchorMin = new Vector2(0.5f, 0.5f);
-        outlineRect.anchorMax = new Vector2(0.5f, 0.5f);
-        outlineRect.anchoredPosition = Vector2.zero;
-        
-        // Usar el mismo tamaño que el icono principal
-        if (rectTransform != null)
-        {
-            outlineRect.sizeDelta = rectTransform.sizeDelta;
-        }
-        else
-        {
-            outlineRect.sizeDelta = new Vector2(baseSize, baseSize);
-        }
-        
-        // Asegurar que el outline esté detrás usando sorting order
-        Canvas outlineCanvas = outlineGO.GetComponent<Canvas>();
-        if (outlineCanvas == null)
-        {
-            outlineCanvas = outlineGO.AddComponent<Canvas>();
-        }
-        outlineCanvas.overrideSorting = true;
-        outlineCanvas.sortingOrder = -1; // Dibujar antes que el icono principal
-        
-        // Inicialmente oculto
-        outlineImage.enabled = false;
-    }
+
     
     protected override OrbitalCamera.ZoomLevel minZoomLevel
     {
@@ -206,11 +162,6 @@ public class ResourceIcon : WorldUIElement
         if (iconSprite != null)
         {
             image.sprite = iconSprite;
-            // Actualizar también el sprite del outline
-            if (outlineImage != null)
-            {
-                outlineImage.sprite = iconSprite;
-            }
         }
         else
         {
@@ -219,6 +170,7 @@ public class ResourceIcon : WorldUIElement
         
         // Aplicar estilos después de cargar el sprite
         ApplyResourceStyleLogic();
+        UpdateShaderProperties();
     }
 
     private string GetIconNameForResourceType(ResourceType resourceType)
@@ -244,12 +196,6 @@ public class ResourceIcon : WorldUIElement
         texture.Apply();
         Sprite sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1f);
         image.sprite = sprite;
-        
-        // Actualizar también el sprite del outline
-        if (outlineImage != null)
-        {
-            outlineImage.sprite = sprite;
-        }
     }
 
     public void DestroyIcon()
@@ -260,34 +206,64 @@ public class ResourceIcon : WorldUIElement
     private void ApplyNaturalResourceStyle()
     {
         // Estilo para recursos naturales (fijos en el terreno)
-        if (image != null)
-        {
-            Color naturalColor = tintColor;
-            naturalColor.a = 0.7f; // Más transparente
-            naturalColor *= 0.7f; // Más apagado
-            image.color = naturalColor;
-        }
         SetSize(baseSize * 0.8f); // Más pequeños
         bobbingEnabled = false; // Deshabilitar bobbing para recursos naturales
+        UpdateShaderProperties();
     }
 
     private void ApplyRealResourceStyle()
     {
         // Estilo para recursos reales (en movimiento)
-        if (image != null)
-        {
-            image.color = tintColor;
-        }
         SetSize(baseSize * 1.5f); // Más grandes
         bobbingEnabled = true; // Habilitar bobbing para recursos reales
+        UpdateShaderProperties();
+    }
+    
+    private void SetupShader()
+    {
+        if (resourceIconMaterial == null)
+        {
+            // Cargar el material del shader si no está asignado
+            resourceIconMaterial = new Material(Shader.Find("Custom/ResourceIcon"));
+        }
+        
+        if (image != null && resourceIconMaterial != null)
+        {
+            image.material = resourceIconMaterial;
+        }
+    }
+    
+    private void UpdateShaderProperties()
+    {
+        if (image != null && resourceIconMaterial != null)
+        {
+            // Actualizar propiedades del shader directamente en el material
+            resourceIconMaterial.SetColor("_Color", tintColor);
+            resourceIconMaterial.SetFloat("_Brightness", isSelected ? 1.2f : 1.0f);
+            resourceIconMaterial.SetFloat("_PulseSpeed", bobbingEnabled ? 2.0f : 0.0f);
+            resourceIconMaterial.SetFloat("_PulseAmount", isSelected ? 0.15f : 0.05f);
+            resourceIconMaterial.SetColor("_OutlineColor", Color.black);
+            resourceIconMaterial.SetFloat("_OutlineWidth", isSelected ? 0.03f : 0.00f);
+            resourceIconMaterial.SetFloat("_GlowIntensity", isSelected ? 0.2f : 0.00f);
+            resourceIconMaterial.SetColor("_GlowColor", tintColor);
+            
+            // Aplicar opacity y saturation según el tipo de recurso
+            if (IsNaturalResource)
+            {
+                resourceIconMaterial.SetFloat("_Opacity", 0.7f);
+                resourceIconMaterial.SetFloat("_Saturation", 0.5f);
+            }
+            else if (IsRealResource)
+            {
+                resourceIconMaterial.SetFloat("_Opacity", 1.0f);
+                resourceIconMaterial.SetFloat("_Saturation", 1.0f);
+            }
+        }
     }
     
     private void ApplySelectionStyle()
     {
-        if (outlineImage != null)
-        {
-            outlineImage.enabled = isSelected;
-        }
+        UpdateShaderProperties();
     }
     
     public void SetSelected(bool selected)
