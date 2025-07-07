@@ -170,6 +170,53 @@ public class IDPicker : MonoBehaviour
         
         return id;
     }
+    
+    /// <summary>
+    /// Get the currently selected triangle data based on mouse position
+    /// </summary>
+    /// <returns>TriangleData if a valid triangle is under the mouse, null otherwise</returns>
+    public TriangleData GetSelectedTriangle()
+    {
+        int triangleId = GetSelectedTriangleID();
+        
+        if (triangleId == -1 || icoSphere == null || triangleId >= icoSphere.triangleDataList.Count)
+        {
+            return null;
+        }
+        
+        return icoSphere.triangleDataList[triangleId];
+    }
+    
+    /// <summary>
+    /// Get a triangle by ID using the current IcoSphere instance
+    /// </summary>
+    /// <param name="triangleId">The ID of the triangle to get</param>
+    /// <returns>TriangleData if found, null otherwise</returns>
+    public TriangleData GetTriangleById(int triangleId)
+    {
+        if (triangleId == -1 || icoSphere == null || triangleId >= icoSphere.triangleDataList.Count)
+        {
+            return null;
+        }
+        
+        return icoSphere.triangleDataList[triangleId];
+    }
+    
+    /// <summary>
+    /// Get a triangle by ID using any available IcoSphere instance
+    /// </summary>
+    /// <param name="triangleId">The ID of the triangle to get</param>
+    /// <returns>TriangleData if found, null otherwise</returns>
+    public static TriangleData GetTriangleByIdStatic(int triangleId)
+    {
+        IcoSphere icoSphere = FindFirstObjectByType<IcoSphere>();
+        if (icoSphere == null || triangleId == -1 || triangleId >= icoSphere.triangleDataList.Count)
+        {
+            return null;
+        }
+        
+        return icoSphere.triangleDataList[triangleId];
+    }
 
     #if UNITY_EDITOR
     void OnDrawGizmos()

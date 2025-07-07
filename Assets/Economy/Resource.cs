@@ -136,6 +136,16 @@ public class Resource : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Sets the destination triangle for this resource
+    /// </summary>
+    /// <param name="destinationTriangle">The triangle to set as destination</param>
+    public void SetDestination(TriangleData destinationTriangle)
+    {
+        destination = destinationTriangle;
+        Debug.Log($"Set destination for {type} to triangle {destinationTriangle?.id}");
+    }
+
     
     public override string ToString()
     {

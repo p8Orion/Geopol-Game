@@ -1,8 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 
-public class ResourceIcon : WorldUIElement
+public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler
 {
     [Header("Resource Data")]
     public Resource resource;
@@ -23,12 +25,20 @@ public class ResourceIcon : WorldUIElement
     public bool isSelected = false;
     public bool isSelectable = true;
     
+    [Header("Drag & Drop")]
+    public bool isDragging = false;
+    public Vector3 dragOffset;
+    public GameObject dragPreview;
+    
     [Header("Shader Settings")]
     public Material resourceIconMaterial;
 
     // Propiedades para abstraer la lógica de tipo de recurso
     private bool IsNaturalResource => triangleData != null;
     private bool IsRealResource => resource != null && triangleData == null;
+    
+    // Referencias para drag & drop
+    private IDPicker idPicker;
     
     protected override void OnUpdate()
     {
@@ -37,6 +47,23 @@ public class ResourceIcon : WorldUIElement
         {
             bobbingTime += Time.deltaTime * bobbingSpeed;
         }
+        
+        // Update drag preview position
+        if (isDragging && dragPreview != null)
+        {
+            Vector3 mouseWorldPos = GetMouseWorldPosition();
+            dragPreview.transform.position = mouseWorldPos + dragOffset;
+        }
+    }
+    
+    private Vector3 GetMouseWorldPosition()
+    {
+        if (Camera.main == null) return Vector3.zero;
+        
+        // Usar el nuevo Input System
+        Vector3 mousePos = Mouse.current != null ? Mouse.current.position.ReadValue() : Vector3.zero;
+        mousePos.z = 10f; // Distance from camera
+        return Camera.main.ScreenToWorldPoint(mousePos);
     }
     
     private void ApplyResourceStyleLogic()
@@ -77,11 +104,42 @@ public class ResourceIcon : WorldUIElement
         SetupResourceSpecifics();
         SetupShader();
         UpdateSprite();
+        
+        // Find references for drag & drop
+        if (idPicker == null)
+            idPicker = UnityEngine.Object.FindFirstObjectByType<IDPicker>();
+            
+        // Ensure we have a GraphicRaycaster for drag & drop to work
+        EnsureGraphicRaycaster();
+    }
+    
+    private void EnsureGraphicRaycaster()
+    {
+        // Check if we have a GraphicRaycaster in the hierarchy
+        GraphicRaycaster raycaster = GetComponentInParent<GraphicRaycaster>();
+        if (raycaster == null)
+        {
+            Debug.LogWarning("ResourceIcon: No GraphicRaycaster found in parent hierarchy. Drag & drop may not work.");
+        }
+        else
+        {
+            Debug.Log("ResourceIcon: GraphicRaycaster found, drag & drop should work.");
+        }
+        
+        // Ensure we have an Image component for drag & drop
+        if (image == null)
+        {
+            Debug.LogError("ResourceIcon: No Image component found! Drag & drop will not work.");
+        }
+        else
+        {
+            Debug.Log("ResourceIcon: Image component found, drag & drop should work.");
+        }
     }
     
     private void SetupResourceSpecifics()
     {
-        // Los recursos naturales no son clickeables
+        // Los recursos naturales no son clickeables ni draggables
         if (IsNaturalResource)
         {
             SetClickable(false);
@@ -252,7 +310,7 @@ public class ResourceIcon : WorldUIElement
             }
             else if (IsRealResource)
             {
-                resourceIconMaterial.SetFloat("_Opacity", 1.0f);
+                resourceIconMaterial.SetFloat("_Opacity", 0.85f);
                 resourceIconMaterial.SetFloat("_Saturation", 1.0f);
             }
         }
@@ -291,6 +349,111 @@ public class ResourceIcon : WorldUIElement
         }
     }
 
+    // --- Drag & Drop Implementation ---
     
-
+    public void OnBeginDrag(PointerEventData eventData)
+    {
+        // Solo permitir drag para recursos reales
+        if (!IsRealResource || resource == null || !resource.isActive || !resource.isSelectable)
+        {
+            Debug.Log($"Drag blocked: IsRealResource={IsRealResource}, resource={resource}, isActive={resource?.isActive}, isSelectable={resource?.isSelectable}");
+            return;
+        }
+        
+        isDragging = true;
+        
+        // Calcular offset basado en la posición del mouse en el mundo
+        Vector3 mouseWorldPos = GetMouseWorldPosition();
+        dragOffset = transform.position - mouseWorldPos;
+        
+        // Crear preview de drag
+        CreateDragPreview();
+        
+        Debug.Log($"Started dragging resource {resource.type} from triangle {resource.origin?.id}");
+    }
+    
+    public void OnDrag(PointerEventData eventData)
+    {
+        if (!isDragging) return;
+        
+        // El preview se actualiza en OnUpdate()
+    }
+    
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        if (!isDragging) return;
+        
+        // Intentar hacer drop en un triángulo
+        TriangleData targetTriangle = GetTriangleUnderMouse();
+        Debug.Log($"EndDrag: triangleId={targetTriangle?.id}");
+        
+        if (targetTriangle != null)
+        {
+            resource.SetDestination(targetTriangle);
+        }
+        else
+        {
+            Debug.Log("No valid triangle found for drop");
+        }
+        
+        // Limpiar drag
+        CleanupDrag();
+        
+        Debug.Log($"Ended dragging resource {resource.type}");
+    }
+    
+    public void OnDrop(PointerEventData eventData)
+    {
+        // Los ResourceIcon no reciben drops, solo los hacen
+    }
+    
+    private TriangleData GetTriangleUnderMouse()
+    {
+        if (idPicker == null) 
+        {
+            Debug.LogWarning("IDPicker not found for drag & drop");
+            return null;
+        }
+        return idPicker.GetSelectedTriangle();
+    }
+        
+    private void CreateDragPreview()
+    {
+        if (dragPreview != null) return;
+        
+        // Crear un preview visual del recurso siendo arrastrado
+        dragPreview = new GameObject($"DragPreview_{resourceType}");
+        
+        // Crear un sprite renderer para el preview
+        SpriteRenderer previewRenderer = dragPreview.AddComponent<SpriteRenderer>();
+        previewRenderer.sprite = image.sprite;
+        previewRenderer.color = tintColor;
+        previewRenderer.sortingOrder = 1000; // Asegurar que esté por encima
+        
+        // Hacer el preview semi-transparente
+        Color previewColor = tintColor;
+        previewColor.a = 0.7f;
+        previewRenderer.color = previewColor;
+        
+        // Escalar el preview
+        dragPreview.transform.localScale = Vector3.one * 0.5f;
+        
+        Debug.Log("Created drag preview");
+    }
+    
+    private void CleanupDrag()
+    {
+        isDragging = false;
+        
+        if (dragPreview != null)
+        {
+            Destroy(dragPreview);
+            dragPreview = null;
+        }
+    }
+    
+    void OnDestroy()
+    {
+        CleanupDrag();
+    }
 } 
