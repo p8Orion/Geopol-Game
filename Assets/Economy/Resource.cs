@@ -10,7 +10,7 @@ public class Resource : MonoBehaviour
 
     [Header("Location")]
     public TriangleData origin;
-    public TriangleData destination;
+    public IResourceDropPosition destination;
     
     [Header("Route")]
     public List<Vector3> waypoints = new();
@@ -137,13 +137,13 @@ public class Resource : MonoBehaviour
     }
 
     /// <summary>
-    /// Sets the destination triangle for this resource
+    /// Sets the destination for this resource
     /// </summary>
-    /// <param name="destinationTriangle">The triangle to set as destination</param>
-    public void SetDestination(TriangleData destinationTriangle)
+    /// <param name="destinationPosition">The drop position to set as destination</param>
+    public void SetDestination(IResourceDropPosition destinationPosition)
     {
-        destination = destinationTriangle;
-        Debug.Log($"Set destination for {type} to triangle {destinationTriangle?.id}");
+        destination = destinationPosition;
+        Debug.Log($"Set destination for {type} to {destinationPosition?.GetDropPositionName() ?? "null"}");
     }
 
     

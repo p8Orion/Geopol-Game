@@ -51,8 +51,22 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
         // Update drag preview position
         if (isDragging && dragPreview != null)
         {
-            Vector3 mouseWorldPos = GetMouseWorldPosition();
-            dragPreview.transform.position = mouseWorldPos + dragOffset;
+            // Para UI elements, usar coordenadas de pantalla directamente
+            Vector2 mouseScreenPos = Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
+            
+            // Convertir a coordenadas locales del canvas
+            RectTransform previewRect = dragPreview.GetComponent<RectTransform>();
+            if (previewRect != null)
+            {
+                Vector2 localPos;
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    previewRect.parent as RectTransform, 
+                    mouseScreenPos, 
+                    null, // No camera needed for Screen Space - Overlay
+                    out localPos);
+                
+                previewRect.anchoredPosition = localPos + new Vector2(dragOffset.x, dragOffset.y);
+            }
         }
     }
     
@@ -362,9 +376,10 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
         
         isDragging = true;
         
-        // Calcular offset basado en la posición del mouse en el mundo
-        Vector3 mouseWorldPos = GetMouseWorldPosition();
-        dragOffset = transform.position - mouseWorldPos;
+        // Calcular offset basado en la posición del mouse en pantalla
+        Vector2 mouseScreenPos = Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
+        Vector2 iconScreenPos = RectTransformUtility.WorldToScreenPoint(null, transform.position);
+        dragOffset = (Vector2)iconScreenPos - mouseScreenPos;
         
         // Crear preview de drag
         CreateDragPreview();
@@ -383,17 +398,25 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
     {
         if (!isDragging) return;
         
-        // Intentar hacer drop en un triángulo
-        TriangleData targetTriangle = GetTriangleUnderMouse();
-        Debug.Log($"EndDrag: triangleId={targetTriangle?.id}");
+        // Buscar un IResourceAcceptor bajo el mouse
+        IResourceAcceptor acceptor = GetResourceAcceptorUnderMouse();
+        Debug.Log($"EndDrag: acceptor={acceptor}");
         
-        if (targetTriangle != null)
+        if (acceptor != null && acceptor.CanAcceptResource(resource))
         {
-            resource.SetDestination(targetTriangle);
+            if (acceptor.AcceptResource(resource))
+            {
+                IResourceDropPosition dropPosition = acceptor.GetDropPosition();
+                Debug.Log($"Successfully dropped resource {resource.type} on acceptor at {dropPosition?.GetDropPositionName()}");
+            }
+            else
+            {
+                Debug.Log($"Failed to accept resource {resource.type} on acceptor");
+            }
         }
         else
         {
-            Debug.Log("No valid triangle found for drop");
+            Debug.Log("No valid resource acceptor found for drop");
         }
         
         // Limpiar drag
@@ -407,38 +430,93 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
         // Los ResourceIcon no reciben drops, solo los hacen
     }
     
-    private TriangleData GetTriangleUnderMouse()
+    private IResourceAcceptor GetResourceAcceptorUnderMouse()
     {
-        if (idPicker == null) 
+        // Usar raycast para encontrar objetos con IResourceAcceptor
+        Vector2 mouseScreenPos = Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
+        
+        // Raycast desde la cámara principal
+        if (Camera.main != null)
         {
-            Debug.LogWarning("IDPicker not found for drag & drop");
-            return null;
+            Ray ray = Camera.main.ScreenPointToRay(mouseScreenPos);
+            RaycastHit hit;
+            
+            if (Physics.Raycast(ray, out hit))
+            {
+                // Buscar IResourceAcceptor en el objeto golpeado o en sus padres
+                IResourceAcceptor acceptor = hit.collider.GetComponent<IResourceAcceptor>();
+                if (acceptor == null)
+                {
+                    acceptor = hit.collider.GetComponentInParent<IResourceAcceptor>();
+                }
+                
+                if (acceptor != null)
+                {
+                    Debug.Log($"Found IResourceAcceptor: {hit.collider.name}");
+                    return acceptor;
+                }
+            }
         }
-        return idPicker.GetSelectedTriangle();
+        
+        // También buscar en objetos UI si no se encontró en el mundo 3D
+        if (EventSystem.current != null)
+        {
+            PointerEventData pointerData = new PointerEventData(EventSystem.current);
+            pointerData.position = mouseScreenPos;
+            
+            System.Collections.Generic.List<RaycastResult> results = new System.Collections.Generic.List<RaycastResult>();
+            EventSystem.current.RaycastAll(pointerData, results);
+            
+            foreach (RaycastResult result in results)
+            {
+                IResourceAcceptor acceptor = result.gameObject.GetComponent<IResourceAcceptor>();
+                if (acceptor != null)
+                {
+                    Debug.Log($"Found IResourceAcceptor in UI: {result.gameObject.name}");
+                    return acceptor;
+                }
+            }
+        }
+        
+        Debug.Log("No IResourceAcceptor found under mouse");
+        return null;
     }
         
     private void CreateDragPreview()
     {
         if (dragPreview != null) return;
         
-        // Crear un preview visual del recurso siendo arrastrado
+        // Crear un preview visual del recurso siendo arrastrado como UI element
         dragPreview = new GameObject($"DragPreview_{resourceType}");
         
-        // Crear un sprite renderer para el preview
-        SpriteRenderer previewRenderer = dragPreview.AddComponent<SpriteRenderer>();
-        previewRenderer.sprite = image.sprite;
-        previewRenderer.color = tintColor;
-        previewRenderer.sortingOrder = 1000; // Asegurar que esté por encima
+        // Hacerlo hijo del mismo canvas que el ResourceIcon
+        Canvas parentCanvas = GetComponentInParent<Canvas>();
+        if (parentCanvas != null)
+        {
+            dragPreview.transform.SetParent(parentCanvas.transform, false);
+        }
+        
+        // Agregar componentes de UI
+        RectTransform rectTransform = dragPreview.AddComponent<RectTransform>();
+        Image previewImage = dragPreview.AddComponent<Image>();
+        
+        // Configurar el sprite y color
+        previewImage.sprite = image.sprite;
+        previewImage.color = tintColor;
         
         // Hacer el preview semi-transparente
         Color previewColor = tintColor;
         previewColor.a = 0.7f;
-        previewRenderer.color = previewColor;
+        previewImage.color = previewColor;
         
-        // Escalar el preview
-        dragPreview.transform.localScale = Vector3.one * 0.5f;
+        // Configurar el tamaño basado en baseSize
+        rectTransform.sizeDelta = new Vector2(baseSize, baseSize);
         
-        Debug.Log("Created drag preview");
+        // Asegurar que esté por encima de otros elementos
+        CanvasGroup canvasGroup = dragPreview.AddComponent<CanvasGroup>();
+        canvasGroup.blocksRaycasts = false; // No bloquear raycasts
+        
+        Debug.Log($"Created UI drag preview with size {baseSize}");
     }
     
     private void CleanupDrag()
