@@ -17,6 +17,9 @@ public class TriangleData
     [System.NonSerialized]
     public ResourceIcon resourceIcon; // Visual representation of the resource
 
+    [Header("Building")]
+    public Building building = null; // Reference to the actual building GameObject
+    
     [Header("Resource Origins/Destinations")]
     [System.NonSerialized]
     public List<Resource> resourcesOriginatingFrom = new();
@@ -168,6 +171,40 @@ public class TriangleData
         
         naturalResource = resourceType;
         UpdateResourceIcon();
+    }
+    
+    /// <summary>
+    /// Sets the building for this triangle
+    /// </summary>
+    public void SetBuilding(Building newBuilding)
+    {
+        // Remove existing building if any
+        if (building != null)
+        {
+            building = null;
+        }
+        
+        // Set new building
+        building = newBuilding;
+    }
+    
+    /// <summary>
+    /// Removes the building from this triangle
+    /// </summary>
+    public void RemoveBuilding()
+    {
+        if (building != null)
+        {
+            building = null;
+        }
+    }
+    
+    /// <summary>
+    /// Checks if this triangle has a building assigned
+    /// </summary>
+    public bool HasBuilding()
+    {
+        return building != null;
     }
     
     /// <summary>

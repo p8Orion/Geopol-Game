@@ -28,6 +28,10 @@ public class Building : MonoBehaviour, IResourceAcceptor
     public GameObject buildingModel;
     public Material buildingMaterial;
     
+    [Header("Visual Instance")]
+    [System.NonSerialized]
+    public GameObject visualInstance; // The actual visual representation
+    
     private void Start()
     {
         // Generar ID único si no existe
@@ -69,6 +73,12 @@ public class Building : MonoBehaviour, IResourceAcceptor
             {
                 country = triangle.country;
             }
+        }
+        
+        // Create visual representation if building type is set
+        if (buildingType != null && buildingType.prefab != null)
+        {
+            CreateVisual();
         }
     }
     
@@ -127,6 +137,12 @@ public class Building : MonoBehaviour, IResourceAcceptor
         if (triangle != null)
         {
             transform.position = triangle.GetCenter();
+            
+            // Reposition visual instance if it exists
+            if (visualInstance != null)
+            {
+                visualInstance.transform.position = triangle.GetCenter();
+            }
             
             // Actualizar el país si no se asignó manualmente
             if (country == null)
@@ -216,6 +232,88 @@ public class Building : MonoBehaviour, IResourceAcceptor
     public TriangleData GetTriangle()
     {
         return triangle;
+    }
+    
+    /// <summary>
+    /// Creates the visual representation of the building using the prefab from BuildingType
+    /// </summary>
+    public void CreateVisual()
+    {
+        // Destroy existing visual if any
+        DestroyVisual();
+        
+        if (buildingType == null || buildingType.prefab == null)
+        {
+            Debug.LogError($"Building {buildingName}: No prefab found for building type {buildingType?.name ?? "null"}");
+            return;
+        }
+        
+        // Create the visual instance from the prefab
+        visualInstance = Instantiate(buildingType.prefab, transform);
+        visualInstance.name = $"Visual_{buildingName}";
+        
+        // Position the visual at the center of the triangle
+        if (triangle != null)
+        {
+            visualInstance.transform.position = triangle.GetCenter();
+        }
+        
+        // Apply custom material if specified
+        if (buildingMaterial != null)
+        {
+            var renderer = visualInstance.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                renderer.material = buildingMaterial;
+            }
+        }
+        
+        Debug.Log($"Building {buildingName}: Created visual representation");
+    }
+    
+    /// <summary>
+    /// Destroys the visual representation of the building
+    /// </summary>
+    public void DestroyVisual()
+    {
+        if (visualInstance != null)
+        {
+            UnityEngine.Object.DestroyImmediate(visualInstance);
+            visualInstance = null;
+        }
+    }
+    
+    /// <summary>
+    /// Updates the building type and level, recreating the visual if necessary
+    /// </summary>
+    public void UpdateBuildingType(BuildingType newBuildingType, int newLevel = 1)
+    {
+        bool needsVisualUpdate = (buildingType != newBuildingType || buildingLevel != newLevel);
+        
+        buildingType = newBuildingType;
+        buildingLevel = newLevel;
+        
+        // Update building name
+        if (buildingType != null)
+        {
+            string countryName = country != null ? country.name : "Unclaimed";
+            buildingName = $"{countryName}_{buildingType.name}_L{newLevel}_{triangle?.id ?? 0}";
+        }
+        
+        // Recreate visual if building type or level changed
+        if (needsVisualUpdate)
+        {
+            CreateVisual();
+        }
+    }
+    
+    /// <summary>
+    /// Initializes the building with type and level, creating the visual representation
+    /// </summary>
+    public void Initialize(BuildingType newBuildingType, int newLevel = 1)
+    {
+        UpdateBuildingType(newBuildingType, newLevel);
+        CreateVisual();
     }
 }
 

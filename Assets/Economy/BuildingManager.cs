@@ -43,36 +43,26 @@ public class BuildingManager : MonoBehaviour
             return null;
         }
         
-        // Obtener el prefab del tipo de edificio
-        GameObject prefab = buildingType.prefab;
-        if (prefab == null)
-        {
-            Debug.LogError($"No prefab found for building type: {buildingType.name}");
-            return null;
-        }
-        
-        // Crear el edificio
+        // Crear el GameObject del edificio (sin prefab visual)
         Vector3 position = triangle.GetCenter();
         position.y += buildingHeight; // Usar la altura por defecto del BuildingManager
         
-        GameObject buildingGO = Instantiate(prefab, position, Quaternion.identity, transform);
-        Building building = buildingGO.GetComponent<Building>();
+        GameObject buildingGO = new GameObject($"Building_{triangle.id}");
+        buildingGO.transform.position = position;
+        buildingGO.transform.SetParent(transform);
+        
+        Building building = buildingGO.AddComponent<Building>();
         
         if (building == null)
         {
-            Debug.LogError($"Building prefab {prefab.name} does not have Building component!");
+            Debug.LogError("Failed to add Building component!");
             Destroy(buildingGO);
             return null;
         }
         
-        // Configurar el edificio
+        // Configurar el edificio usando la nueva lógica
         building.SetTriangle(triangle);
-        building.buildingType = buildingType;
-        building.buildingLevel = level;
-        
-        // Crear nombre con país, tipo y nivel
-        string countryName = triangle.country != null ? triangle.country.name : "Unclaimed";
-        building.buildingName = $"{countryName}_{buildingType.name}_L{level}_{triangle.id}";
+        building.Initialize(buildingType, level);
         
         // Agregar a la lista de edificios activos
         activeBuildings.Add(building);
@@ -184,6 +174,9 @@ public class BuildingManager : MonoBehaviour
     {
         if (building != null && activeBuildings.Contains(building))
         {
+            // Destroy visual representation first
+            building.DestroyVisual();
+            
             activeBuildings.Remove(building);
             Destroy(building.gameObject);
             Debug.Log($"Destroyed building: {building.buildingName}");

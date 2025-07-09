@@ -9,7 +9,8 @@ public enum EditorMode
 {
     Terrain,
     Country,
-    Resources
+    Resources,
+    Buildings
     // Future modes like Borders, Rivers, etc., can be added here.
 }
 
@@ -27,6 +28,7 @@ public class MapEditor : MonoBehaviour
     public Camera editorCamera;
     public TriangleDataSaver triangleDataSaver;
     public ResourceManager resourceManager;
+    public BuildingManager buildingManager;
 
     [Header("Brush Settings")]
     public int selectedTerrainType = 0;
@@ -42,6 +44,10 @@ public class MapEditor : MonoBehaviour
     
     [Header("Resource Settings")]
     public ResourceType selectedResourceType = ResourceType.None;
+
+    [Header("Building Settings")]
+    public BuildingType selectedBuildingType = null;
+    public int selectedBuildingLevel = 1;
 
     [Header("Visual Feedback")]
     public bool showBrushPreview = true;
@@ -108,6 +114,7 @@ public class MapEditor : MonoBehaviour
         if (editorCamera == null) editorCamera = Camera.main;
         if (triangleDataSaver == null) triangleDataSaver = UnityEngine.Object.FindFirstObjectByType<TriangleDataSaver>();
         if (resourceManager == null) resourceManager = UnityEngine.Object.FindFirstObjectByType<ResourceManager>();
+        if (buildingManager == null) buildingManager = UnityEngine.Object.FindFirstObjectByType<BuildingManager>();
 
         // Initialize preview materials
         InitializePreviewMaterials();
@@ -302,6 +309,10 @@ public class MapEditor : MonoBehaviour
         {
             SwitchToMode(EditorMode.Resources);
         }
+        if (GUILayout.Button("Buildings Mode"))
+        {
+            SwitchToMode(EditorMode.Buildings);
+        }
         GUILayout.EndHorizontal();
         
         // --- Preview Mode Section ---
@@ -488,6 +499,110 @@ public class MapEditor : MonoBehaviour
             GUILayout.Label("• Space: Create real resource at cursor", EditorStyles.wordWrappedLabel);
         }
 
+        // --- Building Selection Section (only show in Buildings mode) ---
+        if (currentMode == EditorMode.Buildings)
+        {
+            GUILayout.Label("Building Selection", EditorStyles.boldLabel);
+            
+            // Building type selection
+            if (selectedBuildingType != null)
+            {
+                GUILayout.Label($"Selected Building: {selectedBuildingType.GetEmoji()} {selectedBuildingType.GetDisplayName()} Level {selectedBuildingLevel}");
+            }
+            else
+            {
+                GUILayout.Label("Selected Building: None");
+            }
+    
+            // Building type buttons
+            GUILayout.Label("Available Building Types:");
+            
+            // Get all building types
+            BuildingType[] buildingTypes = BuildingType.GetAllBuildingTypes().ToArray();
+            
+            int buttonWidth = 120;
+            int buttonHeight = 40;
+            int buttonsPerRow = 2;
+            
+            for (int i = 0; i < buildingTypes.Length; i++)
+            {
+                if (i % buttonsPerRow == 0)
+                {
+                    if (i > 0) GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                }
+
+                var buildingType = buildingTypes[i];
+                
+                GUI.backgroundColor = (buildingType == selectedBuildingType) ? Color.green : Color.white;
+                if (GUILayout.Button($"{buildingType.GetEmoji()} {buildingType.GetDisplayName()}", GUILayout.Width(buttonWidth), GUILayout.Height(buttonHeight)))
+                {
+                    SelectBuildingType(buildingType);
+                }
+            }
+            GUILayout.EndHorizontal();
+            
+            // Building level selection
+            if (selectedBuildingType != null)
+            {
+                GUILayout.Space(10);
+                GUILayout.Label("Building Level:");
+                
+                int minLevel = selectedBuildingType.GetMinLevel();
+                int maxLevel = selectedBuildingType.GetMaxLevel();
+                
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"Level: {selectedBuildingLevel}", GUILayout.Width(80));
+                selectedBuildingLevel = (int)GUILayout.HorizontalSlider(selectedBuildingLevel, minLevel, maxLevel);
+                GUILayout.Label($"{selectedBuildingLevel}", GUILayout.Width(30));
+                GUILayout.EndHorizontal();
+                
+                // Level info
+                var level = selectedBuildingType.GetLevel(selectedBuildingLevel);
+                if (level != null)
+                {
+                    GUILayout.Label($"Level Name: {level.GetDisplayName()}", EditorStyles.wordWrappedLabel);
+                    
+                    // Show accepted resources
+                    if (level.acceptedResources.Length > 0)
+                    {
+                        string acceptedText = "Accepts: " + string.Join(", ", level.acceptedResources.Select(r => r.GetEmoji() + " " + r.GetDisplayName()));
+                        GUILayout.Label(acceptedText, EditorStyles.wordWrappedLabel);
+                    }
+                    else
+                    {
+                        GUILayout.Label("Accepts: All resources", EditorStyles.wordWrappedLabel);
+                    }
+                    
+                    // Show produced resources
+                    if (level.producedResources.Length > 0)
+                    {
+                        string producedText = "Produces: " + string.Join(", ", level.producedResources.Select(r => r.GetEmoji() + " " + r.GetDisplayName()));
+                        GUILayout.Label(producedText, EditorStyles.wordWrappedLabel);
+                    }
+                    else
+                    {
+                        GUILayout.Label("Produces: Nothing", EditorStyles.wordWrappedLabel);
+                    }
+                }
+            }
+            
+            // Add "None" option for removing buildings
+            GUILayout.Space(10);
+            GUI.backgroundColor = Color.gray;
+            if (GUILayout.Button("None (Remove Building)", GUILayout.ExpandWidth(true)))
+            {
+                SelectBuildingType(null);
+            }
+            GUI.backgroundColor = Color.white;
+            
+            // Add controls legend
+            GUILayout.Space(10);
+            GUILayout.Label("Controls:", EditorStyles.boldLabel);
+            GUILayout.Label("• Left Click: Place building", EditorStyles.wordWrappedLabel);
+            GUILayout.Label("• Space: Create building at cursor", EditorStyles.wordWrappedLabel);
+        }
+
         // --- Terrain Selection Section ---
         GUILayout.Label("Terrain Type", EditorStyles.boldLabel);
         GUILayout.Label($"Selected: {selectedTerrainType} (Press 0-9)");
@@ -592,6 +707,11 @@ public class MapEditor : MonoBehaviour
         {
             // For resources mode, keep the current preview mode
             UpdateStatus("Switched to Resources editing mode.");
+        }
+        else if (newMode == EditorMode.Buildings)
+        {
+            // For buildings mode, keep the current preview mode
+            UpdateStatus("Switched to Buildings editing mode.");
         }
         else
         {
@@ -742,6 +862,11 @@ public class MapEditor : MonoBehaviour
             // For resources mode, keep the current material and preview mode
             UpdateStatus("Switched to Resources preview mode.");
         }
+        else if (currentMode == EditorMode.Buildings)
+        {
+            // For buildings mode, keep the current material and preview mode
+            UpdateStatus("Switched to Buildings preview mode.");
+        }
         else
         {
             // For terrain mode, use the simple preview material
@@ -804,6 +929,11 @@ public class MapEditor : MonoBehaviour
             Debug.Log("MapEditor: Space key in Resources mode - creating resource");
             CreateResourceAtPosition();
         }
+        else if (currentMode == EditorMode.Buildings)
+        {
+            Debug.Log("MapEditor: Space key in Buildings mode - creating building");
+            CreateBuildingAtPosition();
+        }
         else
         {
             Debug.Log($"MapEditor: Space key in {currentMode} mode - ignored");
@@ -845,6 +975,50 @@ public class MapEditor : MonoBehaviour
         Resource newResource = resourceManager.CreateResource(selectedResourceType, triangle);
         
         UpdateStatus($"Created {selectedResourceType.GetEmoji()} {selectedResourceType.GetDisplayName()} resource at triangle {triangleId}");
+    }
+    
+    void CreateBuildingAtPosition()
+    {
+        if (buildingManager == null)
+        {
+            UpdateStatus("Error: BuildingManager not found!");
+            return;
+        }
+        
+        if (selectedBuildingType == null)
+        {
+            UpdateStatus("Please select a building type first.");
+            return;
+        }
+        
+        Vector3 paintPosition = GetPaintPosition();
+        if (paintPosition == Vector3.zero)
+        {
+            UpdateStatus("No valid triangle selected for building creation.");
+            return;
+        }
+        
+        // Get the triangle data
+        int triangleId = idPicker.GetSelectedTriangleID();
+        if (triangleId == -1 || triangleId >= icoSphere.triangleDataList.Count)
+        {
+            UpdateStatus("Invalid triangle ID for building creation.");
+            return;
+        }
+        
+        var triangle = icoSphere.triangleDataList[triangleId];
+        
+        // Create the building using BuildingManager
+        Building newBuilding = buildingManager.CreateBuilding(triangle, selectedBuildingType, selectedBuildingLevel);
+        
+        if (newBuilding != null)
+        {
+            UpdateStatus($"Created {selectedBuildingType.GetEmoji()} {selectedBuildingType.GetDisplayName()} Level {selectedBuildingLevel} building at triangle {triangleId}");
+        }
+        else
+        {
+            UpdateStatus("Failed to create building. Check console for errors.");
+        }
     }
     
     Vector3 GetPaintPosition()
@@ -926,6 +1100,9 @@ public class MapEditor : MonoBehaviour
                             break;
                         case EditorMode.Resources:
                             PaintResource(i, colors);
+                            break;
+                        case EditorMode.Buildings:
+                            PaintBuilding(i, colors);
                             break;
                         // Future modes like PaintBorders would be called here
                     }
@@ -1112,6 +1289,52 @@ public class MapEditor : MonoBehaviour
                         {
                             ResourceType originalResource = (ResourceType)(-entry.Value);
                             triangle.SetNaturalResource(originalResource);
+                        }
+                    }
+                }
+                break;
+                
+            case EditorMode.Buildings:
+                // For building mode, restore the original building assignments
+                foreach (var entry in originalTerrainTypes)
+                {
+                    if (entry.Key < icoSphere.triangleDataList.Count)
+                    {
+                        var triangle = icoSphere.triangleDataList[entry.Key];
+                        
+                        // Remove current building first
+                        if (triangle.building != null)
+                        {
+                            var buildingManager = UnityEngine.Object.FindFirstObjectByType<BuildingManager>();
+                            if (buildingManager != null)
+                            {
+                                buildingManager.DestroyBuilding(triangle.building);
+                            }
+                            triangle.RemoveBuilding();
+                        }
+                        
+                        // Restore original building assignment
+                        // Negative values indicate building data
+                        if (entry.Value < 0)
+                        {
+                            int buildingTypeIndex = -entry.Value - 1; // -1 to convert back from our encoding
+                            if (buildingTypeIndex >= 0)
+                            {
+                                BuildingType originalBuildingType = BuildingType.GetByIndex(buildingTypeIndex);
+                                if (originalBuildingType != null)
+                                {
+                                    // Create building using BuildingManager
+                                    var buildingManager = UnityEngine.Object.FindFirstObjectByType<BuildingManager>();
+                                    if (buildingManager != null)
+                                    {
+                                        Building newBuilding = buildingManager.CreateBuilding(triangle, originalBuildingType, 1); // Use level 1 as default
+                                        if (newBuilding != null)
+                                        {
+                                            triangle.SetBuilding(newBuilding);
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1462,6 +1685,24 @@ public class MapEditor : MonoBehaviour
     }
 
     /// <summary>
+    /// Selects a building type for editing
+    /// </summary>
+    public void SelectBuildingType(BuildingType buildingType)
+    {
+        selectedBuildingType = buildingType;
+        if (buildingType != null)
+        {
+            // Reset level to minimum when selecting a new building type
+            selectedBuildingLevel = buildingType.GetMinLevel();
+            UpdateStatus($"Selected building: {buildingType.GetEmoji()} {buildingType.GetDisplayName()} Level {selectedBuildingLevel}");
+        }
+        else
+        {
+            UpdateStatus("Selected: None (Remove mode) - Click to remove buildings from triangles");
+        }
+    }
+
+    /// <summary>
     /// Handles painting logic for country assignment
     /// </summary>
     private void PaintCountry(int triangleIndex, Color[] colors)
@@ -1526,12 +1767,78 @@ public class MapEditor : MonoBehaviour
     }
     
     /// <summary>
+    /// Handles painting logic for building assignment
+    /// </summary>
+    private void PaintBuilding(int triangleIndex, Color[] colors)
+    {
+        var triangle = icoSphere.triangleDataList[triangleIndex];
+
+        // Store original building for undo
+        if (!originalTerrainTypes.ContainsKey(triangleIndex))
+        {
+            // We'll use the terrain types dictionary to store original building data
+            // Store as negative values to distinguish from terrain types
+            // For buildings, we'll store the building type index as negative value
+            int originalBuildingData = -1; // -1 means no building
+            if (triangle.building != null && triangle.building.buildingType != null)
+            {
+                originalBuildingData = -(BuildingType.GetIndex(triangle.building.buildingType) + 1); // +1 to avoid -0
+            }
+            originalTerrainTypes[triangleIndex] = originalBuildingData;
+        }
+
+        // Remove existing building first
+        if (triangle.building != null)
+        {
+            var buildingManager = UnityEngine.Object.FindFirstObjectByType<BuildingManager>();
+            if (buildingManager != null)
+            {
+                buildingManager.DestroyBuilding(triangle.building);
+            }
+            triangle.RemoveBuilding();
+        }
+
+        // Create new building if type is selected
+        if (selectedBuildingType != null)
+        {
+            var buildingManager = UnityEngine.Object.FindFirstObjectByType<BuildingManager>();
+            if (buildingManager != null)
+            {
+                Building newBuilding = buildingManager.CreateBuilding(triangle, selectedBuildingType, selectedBuildingLevel);
+                if (newBuilding != null)
+                {
+                    triangle.SetBuilding(newBuilding);
+                }
+            }
+        }
+        
+        // Update preview colors for building mode
+        Color previewColor = GetBuildingPreviewColor(selectedBuildingType);
+        int baseVertexIndex = triangleIndex * 3;
+        if (baseVertexIndex + 2 < colors.Length)
+        {
+            colors[baseVertexIndex] = previewColor;
+            colors[baseVertexIndex + 1] = previewColor;
+            colors[baseVertexIndex + 2] = previewColor;
+        }
+    }
+
+    /// <summary>
     /// Gets preview color for resource type
     /// </summary>
     private Color GetResourcePreviewColor(ResourceType resourceType)
     {
         // Use the color from ResourceType
         return resourceType.GetColor();
+    }
+
+    /// <summary>
+    /// Gets preview color for building type
+    /// </summary>
+    private Color GetBuildingPreviewColor(BuildingType buildingType)
+    {
+        // Use the color from BuildingType
+        return buildingType.GetColor();
     }
 
     void DrawCountryPreviewOverlay()

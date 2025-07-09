@@ -98,6 +98,25 @@ public class BuildingType
     }
     
     /// <summary>
+    /// Obtiene el color asociado al tipo de edificio
+    /// </summary>
+    public Color GetColor()
+    {
+        switch (name.ToLower())
+        {
+            case "factory": return new Color(0.8f, 0.4f, 0.2f); // Marrón industrial
+            case "warehouse": return new Color(0.6f, 0.6f, 0.6f); // Gris
+            case "market": return new Color(1.0f, 0.8f, 0.0f); // Amarillo dorado
+            case "port": return new Color(0.2f, 0.4f, 0.8f); // Azul marino
+            case "mine": return new Color(0.4f, 0.2f, 0.0f); // Marrón oscuro
+            case "farm": return new Color(0.2f, 0.8f, 0.2f); // Verde
+            case "powerplant": return new Color(1.0f, 0.6f, 0.0f); // Naranja
+            case "researchcenter": return new Color(0.8f, 0.2f, 0.8f); // Magenta
+            default: return new Color(0.5f, 0.5f, 0.5f); // Gris por defecto
+        }
+    }
+    
+    /// <summary>
     /// Obtiene un nivel específico
     /// </summary>
     public BuildingLevel GetLevel(int level)
