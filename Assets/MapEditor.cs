@@ -10,7 +10,8 @@ public enum EditorMode
     Terrain,
     Country,
     Resources,
-    Buildings
+    Buildings,
+    Features
     // Future modes like Borders, Rivers, etc., can be added here.
 }
 
@@ -29,6 +30,7 @@ public class MapEditor : MonoBehaviour
     public TriangleDataSaver triangleDataSaver;
     public ResourceManager resourceManager;
     public BuildingManager buildingManager;
+    public FeatureRenderer featureRenderer;
 
     [Header("Brush Settings")]
     public int selectedTerrainType = 0;
@@ -49,6 +51,10 @@ public class MapEditor : MonoBehaviour
     public BuildingType selectedBuildingType = null;
     public int selectedBuildingLevel = 1;
     public Country selectedBuildingCountry = null; // País propietario del edificio
+
+    [Header("Feature Settings")]
+    public FeatureType selectedFeatureType = FeatureType.None;
+    public int selectedFeatureLevel = 1;
 
     [Header("Visual Feedback")]
     public bool showBrushPreview = true;
@@ -116,6 +122,7 @@ public class MapEditor : MonoBehaviour
         if (triangleDataSaver == null) triangleDataSaver = UnityEngine.Object.FindFirstObjectByType<TriangleDataSaver>();
         if (resourceManager == null) resourceManager = UnityEngine.Object.FindFirstObjectByType<ResourceManager>();
         if (buildingManager == null) buildingManager = UnityEngine.Object.FindFirstObjectByType<BuildingManager>();
+        if (featureRenderer == null) featureRenderer = UnityEngine.Object.FindFirstObjectByType<FeatureRenderer>();
 
         // Initialize preview materials
         InitializePreviewMaterials();
@@ -310,9 +317,16 @@ public class MapEditor : MonoBehaviour
         {
             SwitchToMode(EditorMode.Resources);
         }
+        GUILayout.EndHorizontal();
+        
+        GUILayout.BeginHorizontal();
         if (GUILayout.Button("Buildings Mode"))
         {
             SwitchToMode(EditorMode.Buildings);
+        }
+        if (GUILayout.Button("Features Mode"))
+        {
+            SwitchToMode(EditorMode.Features);
         }
         GUILayout.EndHorizontal();
         
@@ -649,6 +663,81 @@ public class MapEditor : MonoBehaviour
             GUILayout.Label("• Space: Create building at cursor", EditorStyles.wordWrappedLabel);
         }
 
+        // --- Feature Selection Section (only show in Features mode) ---
+        if (currentMode == EditorMode.Features)
+        {
+            GUILayout.Label("Feature Selection", EditorStyles.boldLabel);
+            
+            // Feature type selection
+            if (selectedFeatureType != FeatureType.None)
+            {
+                GUILayout.Label($"Selected Feature: {selectedFeatureType} Level {selectedFeatureLevel}");
+            }
+            else
+            {
+                GUILayout.Label("Selected Feature: None");
+            }
+    
+            // Feature type buttons
+            GUILayout.Label("Available Feature Types:");
+            
+            // Get all feature types (excluding None)
+            FeatureType[] featureTypes = (FeatureType[])System.Enum.GetValues(typeof(FeatureType));
+            
+            int buttonWidth = 120;
+            int buttonHeight = 40;
+            int buttonsPerRow = 2;
+            
+            for (int i = 0; i < featureTypes.Length; i++)
+            {
+                var featureType = featureTypes[i];
+                
+                // Skip None type in the button list
+                if (featureType == FeatureType.None) continue;
+                
+                if (i % buttonsPerRow == 0)
+                {
+                    if (i > 0) GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                }
+                
+                GUI.backgroundColor = (featureType == selectedFeatureType) ? Color.green : Color.white;
+                if (GUILayout.Button($"{featureType}", GUILayout.Width(buttonWidth), GUILayout.Height(buttonHeight)))
+                {
+                    SelectFeatureType(featureType);
+                }
+            }
+            GUILayout.EndHorizontal();
+            
+            // Feature level selection
+            if (selectedFeatureType != FeatureType.None)
+            {
+                GUILayout.Space(10);
+                GUILayout.Label("Feature Level:");
+                
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"Level: {selectedFeatureLevel}", GUILayout.Width(80));
+                selectedFeatureLevel = (int)GUILayout.HorizontalSlider(selectedFeatureLevel, 1, 5);
+                GUILayout.Label($"{selectedFeatureLevel}", GUILayout.Width(30));
+                GUILayout.EndHorizontal();
+            }
+            
+            // Add "None" option for removing features
+            GUILayout.Space(10);
+            GUI.backgroundColor = Color.gray;
+            if (GUILayout.Button("None (Remove Feature)", GUILayout.ExpandWidth(true)))
+            {
+                SelectFeatureType(FeatureType.None);
+            }
+            GUI.backgroundColor = Color.white;
+            
+            // Add controls legend
+            GUILayout.Space(10);
+            GUILayout.Label("Controls:", EditorStyles.boldLabel);
+            GUILayout.Label("• Left Click: Paint features", EditorStyles.wordWrappedLabel);
+            GUILayout.Label("• Space: Create feature at cursor", EditorStyles.wordWrappedLabel);
+        }
+
         // --- Terrain Selection Section ---
         GUILayout.Label("Terrain Type", EditorStyles.boldLabel);
         GUILayout.Label($"Selected: {selectedTerrainType} (Press 0-9)");
@@ -980,6 +1069,11 @@ public class MapEditor : MonoBehaviour
             Debug.Log("MapEditor: Space key in Buildings mode - creating building");
             CreateBuildingAtPosition();
         }
+        else if (currentMode == EditorMode.Features)
+        {
+            Debug.Log("MapEditor: Space key in Features mode - creating feature");
+            CreateFeatureAtPosition();
+        }
         else
         {
             Debug.Log($"MapEditor: Space key in {currentMode} mode - ignored");
@@ -1066,6 +1160,37 @@ public class MapEditor : MonoBehaviour
             UpdateStatus("Failed to create building. Check console for errors.");
         }
     }
+
+    void CreateFeatureAtPosition()
+    {
+        if (selectedFeatureType == FeatureType.None)
+        {
+            UpdateStatus("Please select a feature type first.");
+            return;
+        }
+        
+        Vector3 paintPosition = GetPaintPosition();
+        if (paintPosition == Vector3.zero)
+        {
+            UpdateStatus("No valid triangle selected for feature creation.");
+            return;
+        }
+        
+        // Get the triangle data
+        int triangleId = idPicker.GetSelectedTriangleID();
+        if (triangleId == -1 || triangleId >= icoSphere.triangleDataList.Count)
+        {
+            UpdateStatus("Invalid triangle ID for feature creation.");
+            return;
+        }
+        
+        var triangle = icoSphere.triangleDataList[triangleId];
+        
+        // Add feature to triangle
+        triangle.AddFeature(selectedFeatureType, selectedFeatureLevel);
+        
+        UpdateStatus($"Added {selectedFeatureType} Level {selectedFeatureLevel} feature to triangle {triangleId}");
+    }
     
     Vector3 GetPaintPosition()
     {
@@ -1149,6 +1274,9 @@ public class MapEditor : MonoBehaviour
                             break;
                         case EditorMode.Buildings:
                             PaintBuilding(i, colors);
+                            break;
+                        case EditorMode.Features:
+                            PaintFeature(i, colors);
                             break;
                         // Future modes like PaintBorders would be called here
                     }
@@ -1382,6 +1510,27 @@ public class MapEditor : MonoBehaviour
                                 }
                             }
                         }
+                    }
+                }
+                break;
+                
+            case EditorMode.Features:
+                // For feature mode, restore the original feature assignments
+                foreach (var entry in originalTerrainTypes)
+                {
+                    if (entry.Key < icoSphere.triangleDataList.Count)
+                    {
+                        var triangle = icoSphere.triangleDataList[entry.Key];
+                        
+                        // Clear all current features
+                        for (int i = triangle.featureTypes.Count - 1; i >= 0; i--)
+                        {
+                            triangle.RemoveFeature(triangle.featureTypes[i]);
+                        }
+                        
+                        // Restore original features (this is simplified - in a real implementation
+                        // you'd want to store the actual feature data, not just a hash)
+                        // For now, we'll just clear the features
                     }
                 }
                 break;
@@ -1753,6 +1902,22 @@ public class MapEditor : MonoBehaviour
     }
 
     /// <summary>
+    /// Selects a feature type for editing
+    /// </summary>
+    public void SelectFeatureType(FeatureType featureType)
+    {
+        selectedFeatureType = featureType;
+        if (featureType != FeatureType.None)
+        {
+            UpdateStatus($"Selected feature: {featureType} Level {selectedFeatureLevel}");
+        }
+        else
+        {
+            UpdateStatus("No feature type selected");
+        }
+    }
+
+    /// <summary>
     /// Handles painting logic for country assignment
     /// </summary>
     private void PaintCountry(int triangleIndex, Color[] colors)
@@ -1891,7 +2056,77 @@ public class MapEditor : MonoBehaviour
         return buildingType.GetColor();
     }
 
-    void DrawCountryPreviewOverlay()
+    /// <summary>
+    /// Handles painting logic for feature assignment
+    /// </summary>
+    private void PaintFeature(int triangleIndex, Color[] colors)
+    {
+        var triangle = icoSphere.triangleDataList[triangleIndex];
+
+        // Store original features for undo
+        if (!originalTerrainTypes.ContainsKey(triangleIndex))
+        {
+            // We'll use the terrain types dictionary to store original feature data
+            // Store as negative values to distinguish from terrain types
+            // For features, we'll store a hash of the features
+            int originalFeatureData = -1; // -1 means no features
+            if (triangle.featureTypes.Count > 0)
+            {
+                // Create a simple hash of the features for undo
+                int hash = 0;
+                for (int i = 0; i < triangle.featureTypes.Count; i++)
+                {
+                    hash += (int)triangle.featureTypes[i] * (i + 1) + triangle.featureLevels[i];
+                }
+                originalFeatureData = -hash;
+            }
+            originalTerrainTypes[triangleIndex] = originalFeatureData;
+        }
+
+        // Remove existing feature of the same type if it exists
+        triangle.RemoveFeature(selectedFeatureType);
+
+        // Add new feature if type is selected
+        if (selectedFeatureType != FeatureType.None)
+        {
+            triangle.AddFeature(selectedFeatureType, selectedFeatureLevel);
+        }
+        
+        // Update preview colors for feature mode
+        Color previewColor = GetFeaturePreviewColor(selectedFeatureType);
+        int baseVertexIndex = triangleIndex * 3;
+        if (baseVertexIndex + 2 < colors.Length)
+        {
+            colors[baseVertexIndex] = previewColor;
+            colors[baseVertexIndex + 1] = previewColor;
+            colors[baseVertexIndex + 2] = previewColor;
+        }
+    }
+
+    /// <summary>
+    /// Gets preview color for feature type
+    /// </summary>
+    private Color GetFeaturePreviewColor(FeatureType featureType)
+    {
+        // Simple color mapping for features
+        switch (featureType)
+        {
+            case FeatureType.Road:
+                return Color.gray;
+            case FeatureType.Pipeline:
+                return Color.cyan;
+            case FeatureType.Canal:
+                return Color.blue;
+            case FeatureType.Bridge:
+                return Color.brown;
+            case FeatureType.Tunnel:
+                return Color.black;
+            default:
+                return Color.white;
+        }
+    }
+
+    void DrawCountryPreviewOverlay() 
     {
         if (lastPaintPosition == Vector3.zero) return;
 

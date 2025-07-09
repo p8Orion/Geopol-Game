@@ -30,6 +30,12 @@ public class TriangleData
     [NonSerialized]
     public Country country;
     
+    [Header("Features")]
+    [SerializeField]
+    public List<FeatureType> featureTypes = new();
+    [SerializeField]
+    public List<int> featureLevels = new(); // Parallel list to featureTypes
+    
     // Adjacent triangles (sharing an edge) - using HashSet for performance and uniqueness
     [System.NonSerialized] // Don't serialize HashSet directly
     public HashSet<int> adjacentTriangles = new();
@@ -196,6 +202,71 @@ public class TriangleData
         if (building != null)
         {
             building = null;
+        }
+    }
+    
+    /// <summary>
+    /// Adds a feature to this triangle with the specified level
+    /// </summary>
+    public void AddFeature(FeatureType featureType, int level = 1)
+    {
+        int index = featureTypes.IndexOf(featureType);
+        if (index >= 0)
+        {
+            featureLevels[index] = level;
+        }
+        else
+        {
+            featureTypes.Add(featureType);
+            featureLevels.Add(level);
+        }
+        
+        // Notify FeatureRenderer about the change
+        NotifyFeatureRenderer();
+    }
+    
+    /// <summary>
+    /// Removes a feature from this triangle
+    /// </summary>
+    public void RemoveFeature(FeatureType featureType)
+    {
+        int index = featureTypes.IndexOf(featureType);
+        if (index >= 0)
+        {
+            featureTypes.RemoveAt(index);
+            featureLevels.RemoveAt(index);
+        }
+        
+        // Notify FeatureRenderer about the change
+        NotifyFeatureRenderer();
+    }
+    
+    /// <summary>
+    /// Checks if this triangle has a specific feature
+    /// </summary>
+    public bool HasFeature(FeatureType featureType)
+    {
+        return featureTypes.Contains(featureType);
+    }
+    
+    /// <summary>
+    /// Gets the level of a specific feature on this triangle
+    /// </summary>
+    public int GetFeatureLevel(FeatureType featureType)
+    {
+        int index = featureTypes.IndexOf(featureType);
+        return index >= 0 ? featureLevels[index] : 0;
+    }
+    
+    /// <summary>
+    /// Notifies the FeatureRenderer about feature changes
+    /// </summary>
+    private void NotifyFeatureRenderer()
+    {
+        var featureRenderer = UnityEngine.Object.FindFirstObjectByType<FeatureRenderer>();
+        if (featureRenderer != null)
+        {
+            featureRenderer.OnTriangleFeaturesChanged(this);
         }
     }
     

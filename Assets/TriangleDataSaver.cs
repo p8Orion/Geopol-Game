@@ -73,6 +73,10 @@ public class TriangleDataSave
     
     [Header("Buildings")]
     public List<BuildingSaveData> buildings = new();
+    
+    [Header("Features")]
+    public List<List<int>> featureTypes = new(); // List of FeatureType enum values for each triangle
+    public List<List<int>> featureLevels = new(); // Parallel list of levels for each triangle
 }
 
 [System.Serializable]
@@ -190,7 +194,9 @@ public class TriangleDataSaver : MonoBehaviour
                 adjacentTriangleIndices = new List<int>(),
                 adjacencyListEndIndices = new List<int>(),
                 activeResources = new List<ResourceSaveData>(),
-                buildings = new List<BuildingSaveData>()
+                buildings = new List<BuildingSaveData>(),
+                featureTypes = new List<List<int>>(),
+                featureLevels = new List<List<int>>()
             };
 
             // Get all unique country names for reference
@@ -235,6 +241,17 @@ public class TriangleDataSaver : MonoBehaviour
                 dataToSave.adjacentTriangleIndices.AddRange(tri.adjacentTriangles);
                 adjacencyCounter += tri.adjacentTriangles.Count;
                 dataToSave.adjacencyListEndIndices.Add(adjacencyCounter);
+                
+                // Save features
+                var triangleFeatureTypes = new List<int>();
+                var triangleFeatureLevels = new List<int>();
+                for (int j = 0; j < tri.featureTypes.Count; j++)
+                {
+                    triangleFeatureTypes.Add((int)tri.featureTypes[j]);
+                    triangleFeatureLevels.Add(tri.featureLevels[j]);
+                }
+                dataToSave.featureTypes.Add(triangleFeatureTypes);
+                dataToSave.featureLevels.Add(triangleFeatureLevels);
             }
             
             Debug.Log($"TriangleDataSaver: Saved {countryTriangleCount} triangles with country assignments out of {icoSphere.triangleDataList.Count} total");
@@ -399,6 +416,10 @@ public class TriangleDataSaver : MonoBehaviour
                 saveData.activeResources = new List<ResourceSaveData>();
             if (saveData.buildings == null)
                 saveData.buildings = new List<BuildingSaveData>();
+            if (saveData.featureTypes == null)
+                saveData.featureTypes = new List<List<int>>();
+            if (saveData.featureLevels == null)
+                saveData.featureLevels = new List<List<int>>();
             
             Debug.Log($"TriangleDataSaver: Loading {saveData.countryNames.Count} countries: {string.Join(", ", saveData.countryNames)}");
             
@@ -477,6 +498,17 @@ public class TriangleDataSaver : MonoBehaviour
                     }
                     adjacencyStartIndex = adjacencyEndIndex;
                 }
+                
+                // Load features
+                if (i < saveData.featureTypes.Count && i < saveData.featureLevels.Count)
+                {
+                    var triangleFeatureTypes = saveData.featureTypes[i];
+                    var triangleFeatureLevels = saveData.featureLevels[i];
+                    for (int j = 0; j < triangleFeatureTypes.Count && j < triangleFeatureLevels.Count; j++)
+                    {
+                        tri.AddFeature((FeatureType)triangleFeatureTypes[j], triangleFeatureLevels[j]);
+                    }
+                }
 
                 loadedTriangles.Add(tri);
             }
@@ -500,6 +532,13 @@ public class TriangleDataSaver : MonoBehaviour
             if (resourceManager != null)
             {
                 resourceManager.RebuildAuxiliaryDataStructures();
+            }
+            
+            // Rebuild feature segments
+            var featureRenderer = UnityEngine.Object.FindFirstObjectByType<FeatureRenderer>();
+            if (featureRenderer != null)
+            {
+                featureRenderer.RebuildAllSegments();
             }
             
             // Set the radius and subdivisions from save data
