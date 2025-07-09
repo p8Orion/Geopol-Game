@@ -166,8 +166,8 @@ public class Route : MonoBehaviour
         
         // Configurar color según tipo de ruta
         Color pathColor = GetRouteColor();
-        float pathWidth = 10f; // Ancho de línea (en unidades de mundo)
-        float pathHeight = 50f; // Altura para que las líneas se vean por encima del terreno
+        float pathWidth = 5f; // Ancho de línea (en unidades de mundo)
+        float pathHeight = 10f; // Altura para que las líneas se vean por encima del terreno
         
         // Crear LineRenderer para cada segmento del path
         for (int i = 0; i < pathTriangles.Count - 1; i++)

@@ -18,7 +18,7 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
     [Header("Bobbing Animation")]
     public bool bobbingEnabled = false;
     public float bobbingSpeed = 2f;
-    public float bobbingAmount = 5f;
+    public float bobbingAmount = 20f;
     private float bobbingTime;
 
     [Header("Selection")]
@@ -80,7 +80,7 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
         return Camera.main.ScreenToWorldPoint(mousePos);
     }
     
-    private void ApplyResourceStyleLogic()
+    public void ApplyResourceStyleLogic()
     {
         // Aplicar estilo basado en el tipo de recurso actual
         if (IsNaturalResource)
@@ -217,6 +217,14 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
             ApplyResourceStyleLogic();
         }
     }
+    
+    /// <summary>
+    /// Fuerza la actualización del shader (útil cuando cambia isUsed)
+    /// </summary>
+    public void RefreshShader()
+    {
+        UpdateShaderProperties();
+    }
 
     public void SetResourceType(ResourceType type)
     {
@@ -284,7 +292,8 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
     private void ApplyRealResourceStyle()
     {
         // Estilo para recursos reales (en movimiento)
-        bobbingEnabled = true; // Habilitar bobbing para recursos reales
+        bool isResourceUsed = (resource != null && resource.isUsed);
+        bobbingEnabled = !isResourceUsed; // Deshabilitar bobbing si está usado
         UpdateShaderProperties();
     }
     
@@ -306,6 +315,9 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
     {
         if (image != null && resourceIconMaterial != null)
         {
+            // Verificar si el resource está usado
+            bool isResourceUsed = (resource != null && resource.isUsed);
+            
             // Actualizar propiedades del shader directamente en el material
             resourceIconMaterial.SetColor("_Color", tintColor);
             resourceIconMaterial.SetFloat("_Brightness", isSelected ? 1.2f : 1.0f);
@@ -316,7 +328,7 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
             resourceIconMaterial.SetFloat("_GlowIntensity", isSelected ? 0.00f : 0.00f);
             resourceIconMaterial.SetColor("_GlowColor", tintColor);
             
-            // Aplicar opacity y saturation según el tipo de recurso
+            // Aplicar opacity y saturation según el tipo de recurso y estado de uso
             if (IsNaturalResource)
             {
                 resourceIconMaterial.SetFloat("_Opacity", 0.6f);
@@ -324,8 +336,18 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
             }
             else if (IsRealResource)
             {
-                resourceIconMaterial.SetFloat("_Opacity", 0.85f);
-                resourceIconMaterial.SetFloat("_Saturation", 1.0f);
+                if (isResourceUsed)
+                {
+                    // Resource usado: más gris y menos opaco
+                    resourceIconMaterial.SetFloat("_Opacity", 0.4f);
+                    resourceIconMaterial.SetFloat("_Saturation", 0.3f);
+                }
+                else
+                {
+                    // Resource disponible: normal
+                    resourceIconMaterial.SetFloat("_Opacity", 0.85f);
+                    resourceIconMaterial.SetFloat("_Saturation", 1.0f);
+                }
             }
         }
     }

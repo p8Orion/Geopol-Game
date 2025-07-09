@@ -13,8 +13,9 @@ public class Resource : MonoBehaviour
     public IResourceAcceptor destination;
     
     [Header("Route")]
-    public List<Vector3> waypoints = new();
+    public Route associatedRoute; // La ruta asociada a este resource
     public bool isActive = true;
+    public bool isUsed = false; // Indica si el resource ya está siendo usado en una ruta
 
     [Header("Visual")]
     public ResourceIcon iconInstance;
@@ -28,25 +29,8 @@ public class Resource : MonoBehaviour
     // Constructor removed - MonoBehaviour cannot have custom constructors
     // Use ResourceManager.CreateResource() instead
     
-    public void AddWaypoint(Vector3 waypoint, bool permanent = false)
-    {
-        // Find the best position to insert the waypoint
-        int insertIndex = waypoints.Count - 1; // Before the destination
-        waypoints.Insert(insertIndex, waypoint);
-    }
-    
-    public void RemoveWaypoint(int index)
-    {
-        if (index > 0 && index < waypoints.Count - 1) // Don't remove origin or destination
-        {
-            waypoints.RemoveAt(index);
-        }
-    }
-    
     public Vector3 GetCurrentPosition()
     {
-        if (waypoints.Count < 2) return origin != null ? origin.GetCenter() : Vector3.zero;
-        
         // For now, just return origin position
         return origin != null ? origin.GetCenter() : Vector3.zero;
     }
@@ -125,6 +109,18 @@ public class Resource : MonoBehaviour
     {
         shouldShowIcon = visible;
         UpdateVisual();
+    }
+    
+    /// <summary>
+    /// Notifica al ResourceIcon que debe actualizar su visualización
+    /// </summary>
+    public void NotifyIconUpdate()
+    {
+        if (iconInstance != null)
+        {
+            iconInstance.RefreshShader();
+            iconInstance.ApplyResourceStyleLogic(); // También actualizar el estilo (bobbing, etc.)
+        }
     }
     
     public void SetSelectable(bool selectable)

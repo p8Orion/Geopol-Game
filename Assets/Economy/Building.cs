@@ -146,6 +146,13 @@ public class Building : MonoBehaviour, IResourceAcceptor
             return;
         }
         
+        // Verificar que el resource no esté ya usado
+        if (resource.isUsed)
+        {
+            Debug.LogWarning($"No se puede crear ruta: el resource {resource.type} ya está siendo usado");
+            return;
+        }
+        
         // Buscar el RouteManager en la escena
         RouteManager routeManager = FindObjectOfType<RouteManager>();
         if (routeManager == null)
@@ -159,6 +166,10 @@ public class Building : MonoBehaviour, IResourceAcceptor
         
         if (newRoute != null)
         {
+            // Actualizar la referencia de la ruta en el resource y marcarlo como usado
+            resource.associatedRoute = newRoute;
+            resource.isUsed = true;
+            resource.NotifyIconUpdate(); // Actualizar visualización del ícono
             Debug.Log($"Ruta de logística creada: {resource.origin.id} -> {buildingName}");
         }
     }
