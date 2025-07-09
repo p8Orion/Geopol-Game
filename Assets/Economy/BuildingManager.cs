@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 
 /// <summary>
 /// Manager para crear y gestionar edificios en el mundo
@@ -18,9 +19,10 @@ public class BuildingManager : MonoBehaviour
     /// </summary>
     /// <param name="triangle">El triángulo donde crear el edificio</param>
     /// <param name="buildingType">El tipo de edificio a crear</param>
+    /// <param name="ownerCountry">El país propietario del edificio (null = usar el país del triángulo)</param>
     /// <param name="level">El nivel del edificio (por defecto 1)</param>
     /// <returns>El edificio creado, o null si falló</returns>
-    public Building CreateBuilding(TriangleData triangle, BuildingType buildingType, int level = 1)
+    public Building CreateBuilding(TriangleData triangle, BuildingType buildingType, Country ownerCountry = null, int level = 1)
     {
         if (triangle == null)
         {
@@ -47,7 +49,11 @@ public class BuildingManager : MonoBehaviour
         Vector3 position = triangle.GetCenter();
         position.y += buildingHeight; // Usar la altura por defecto del BuildingManager
         
-        GameObject buildingGO = new GameObject($"Building_{triangle.id}");
+        // Determinar el país propietario
+        Country finalOwnerCountry = ownerCountry ?? triangle.country;
+        string countryName = finalOwnerCountry != null ? finalOwnerCountry.name : "Unknown";
+        
+        GameObject buildingGO = new GameObject($"{buildingType.name}_{level}_{countryName}_{triangle.id}");
         buildingGO.transform.position = position;
         buildingGO.transform.SetParent(transform);
         
@@ -62,12 +68,13 @@ public class BuildingManager : MonoBehaviour
         
         // Configurar el edificio usando la nueva lógica
         building.SetTriangle(triangle);
+        building.SetCountry(finalOwnerCountry); // Establecer el país propietario explícitamente
         building.Initialize(buildingType, level);
         
         // Agregar a la lista de edificios activos
         activeBuildings.Add(building);
         
-        Debug.Log($"Created {buildingType.name} Level {level} building on triangle {triangle.id}");
+        Debug.Log($"Created {buildingType.name} Level {level} building on triangle {triangle.id}, owned by {countryName}");
         return building;
     }
     
@@ -77,6 +84,14 @@ public class BuildingManager : MonoBehaviour
     public List<Building> GetActiveBuildings()
     {
         return new List<Building>(activeBuildings);
+    }
+    
+    /// <summary>
+    /// Obtiene todos los edificios activos que tienen un triángulo asignado
+    /// </summary>
+    public List<Building> GetActiveBuildingsWithTriangles()
+    {
+        return activeBuildings.Where(building => building != null && building.triangle != null).ToList();
     }
     
     /// <summary>

@@ -70,6 +70,9 @@ public class TriangleDataSave
     
     [Header("Active Resources")]
     public List<ResourceSaveData> activeResources = new();
+    
+    [Header("Buildings")]
+    public List<BuildingSaveData> buildings = new();
 }
 
 [System.Serializable]
@@ -186,7 +189,8 @@ public class TriangleDataSaver : MonoBehaviour
                 countryColors = new List<SerializableColor>(),
                 adjacentTriangleIndices = new List<int>(),
                 adjacencyListEndIndices = new List<int>(),
-                activeResources = new List<ResourceSaveData>()
+                activeResources = new List<ResourceSaveData>(),
+                buildings = new List<BuildingSaveData>()
             };
 
             // Get all unique country names for reference
@@ -257,6 +261,26 @@ public class TriangleDataSaver : MonoBehaviour
                     }
                 }
                 Debug.Log($"TriangleDataSaver: Saved {dataToSave.activeResources.Count} active resources");
+            }
+
+            // Save buildings from BuildingManager
+            var buildingManager = UnityEngine.Object.FindFirstObjectByType<BuildingManager>();
+            if (buildingManager != null)
+            {
+                var activeBuildings = buildingManager.GetActiveBuildingsWithTriangles();
+                foreach (var building in activeBuildings)
+                {
+                    var buildingData = new BuildingSaveData
+                    {
+                        uniqueId = building.uniqueId,
+                        buildingTypeName = building.buildingType != null ? building.buildingType.name : "",
+                        buildingLevel = building.buildingLevel,
+                        triangleId = building.triangle.id,
+                        countryName = building.country != null ? building.country.name : ""
+                    };
+                    dataToSave.buildings.Add(buildingData);
+                }
+                Debug.Log($"TriangleDataSaver: Saved {dataToSave.buildings.Count} buildings");
             }
 
             using (var stream = new FileStream(filePath, FileMode.Create))
@@ -373,6 +397,8 @@ public class TriangleDataSaver : MonoBehaviour
                 saveData.adjacencyListEndIndices = new List<int>();
             if (saveData.activeResources == null)
                 saveData.activeResources = new List<ResourceSaveData>();
+            if (saveData.buildings == null)
+                saveData.buildings = new List<BuildingSaveData>();
             
             Debug.Log($"TriangleDataSaver: Loading {saveData.countryNames.Count} countries: {string.Join(", ", saveData.countryNames)}");
             
@@ -466,6 +492,9 @@ public class TriangleDataSaver : MonoBehaviour
             // Restore active resources
             RestoreActiveResources(saveData.activeResources, loadedTriangles);
             
+            // Restore buildings
+            RestoreBuildings(saveData.buildings, loadedTriangles);
+            
             // Rebuild auxiliary data structures in ResourceManager
             var resourceManager = UnityEngine.Object.FindFirstObjectByType<ResourceManager>();
             if (resourceManager != null)
@@ -518,6 +547,74 @@ public class TriangleDataSaver : MonoBehaviour
             }
         }
         Debug.Log($"TriangleDataSaver: Restored {restoredCount} country-territory relationships");
+    }
+    
+    /// <summary>
+    /// Restores buildings from save data
+    /// </summary>
+    private void RestoreBuildings(List<BuildingSaveData> savedBuildings, List<TriangleData> triangles)
+    {
+        var buildingManager = UnityEngine.Object.FindFirstObjectByType<BuildingManager>();
+        if (buildingManager == null)
+        {
+            Debug.LogWarning("TriangleDataSaver: BuildingManager not found, cannot restore buildings");
+            return;
+        }
+        
+        // Clear existing buildings
+        buildingManager.DestroyAllBuildings();
+        
+        int restoredCount = 0;
+        foreach (var buildingData in savedBuildings)
+        {
+            // Find the triangle where the building should be placed
+            TriangleData targetTriangle = null;
+            if (buildingData.triangleId >= 0 && buildingData.triangleId < triangles.Count)
+            {
+                targetTriangle = triangles[buildingData.triangleId];
+            }
+            
+            if (targetTriangle == null)
+            {
+                Debug.LogWarning($"TriangleDataSaver: Could not find triangle {buildingData.triangleId} for building {buildingData.uniqueId}");
+                continue;
+            }
+            
+            // Find the building type by name
+            BuildingType buildingType = BuildingType.GetByName(buildingData.buildingTypeName);
+            if (buildingType == null)
+            {
+                Debug.LogWarning($"TriangleDataSaver: Could not find building type '{buildingData.buildingTypeName}' for building {buildingData.uniqueId}");
+                continue;
+            }
+            
+            // Find the country by name
+            Country ownerCountry = null;
+            if (!string.IsNullOrEmpty(buildingData.countryName))
+            {
+                var mapEditor = UnityEngine.Object.FindFirstObjectByType<MapEditor>();
+                if (mapEditor != null && mapEditor.countryList != null)
+                {
+                    ownerCountry = mapEditor.countryList.GetCountryByName(buildingData.countryName);
+                }
+            }
+            
+            // Create the building
+            Building newBuilding = buildingManager.CreateBuilding(targetTriangle, buildingType, ownerCountry, buildingData.buildingLevel);
+            
+            if (newBuilding != null)
+            {
+                // Restore the unique ID
+                newBuilding.uniqueId = buildingData.uniqueId;
+                
+                // Set the building on the triangle
+                targetTriangle.SetBuilding(newBuilding);
+                
+                restoredCount++;
+            }
+        }
+        
+        Debug.Log($"TriangleDataSaver: Restored {restoredCount} buildings");
     }
     
     /// <summary>
@@ -643,6 +740,14 @@ public class TriangleDataSaver : MonoBehaviour
             if (saveData.adjacencyListEndIndices.Count > 0)
             {
                 Debug.Log($"- Adjacency list end indices: {saveData.adjacencyListEndIndices.Count} integers");
+            }
+            if (saveData.activeResources.Count > 0)
+            {
+                Debug.Log($"- Active resources: {saveData.activeResources.Count} resources");
+            }
+            if (saveData.buildings.Count > 0)
+            {
+                Debug.Log($"- Buildings: {saveData.buildings.Count} buildings");
             }
         }
         catch (Exception e)

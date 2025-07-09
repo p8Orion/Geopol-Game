@@ -48,6 +48,7 @@ public class MapEditor : MonoBehaviour
     [Header("Building Settings")]
     public BuildingType selectedBuildingType = null;
     public int selectedBuildingLevel = 1;
+    public Country selectedBuildingCountry = null; // País propietario del edificio
 
     [Header("Visual Feedback")]
     public bool showBrushPreview = true;
@@ -587,6 +588,51 @@ public class MapEditor : MonoBehaviour
                 }
             }
             
+            // Country selection for building ownership
+            GUILayout.Space(10);
+            GUILayout.Label("Building Owner Country:");
+            
+            // Show current selected country
+            string currentCountryName = selectedBuildingCountry != null ? selectedBuildingCountry.name : "Triangle's Country (Default)";
+            GUILayout.Label($"Current Owner: {currentCountryName}", EditorStyles.wordWrappedLabel);
+            
+            // Country selection buttons
+            if (countryList != null && countryList.countries != null)
+            {
+                GUILayout.Label("Available Countries:");
+                
+                int countryButtonWidth = 100;
+                int countryButtonHeight = 30;
+                int countryButtonsPerRow = 3;
+                
+                for (int i = 0; i < countryList.countries.Count; i++)
+                {
+                    if (i % countryButtonsPerRow == 0)
+                    {
+                        if (i > 0) GUILayout.EndHorizontal();
+                        GUILayout.BeginHorizontal();
+                    }
+
+                    var country = countryList.countries[i];
+                    
+                    GUI.backgroundColor = (country == selectedBuildingCountry) ? Color.green : Color.white;
+                    if (GUILayout.Button(country.name, GUILayout.Width(countryButtonWidth), GUILayout.Height(countryButtonHeight)))
+                    {
+                        selectedBuildingCountry = country;
+                    }
+                }
+                GUILayout.EndHorizontal();
+                
+                // Option to use triangle's country (default)
+                GUILayout.Space(5);
+                GUI.backgroundColor = (selectedBuildingCountry == null) ? Color.green : Color.white;
+                if (GUILayout.Button("Use Triangle's Country (Default)", GUILayout.ExpandWidth(true)))
+                {
+                    selectedBuildingCountry = null;
+                }
+                GUI.backgroundColor = Color.white;
+            }
+            
             // Add "None" option for removing buildings
             GUILayout.Space(10);
             GUI.backgroundColor = Color.gray;
@@ -1008,8 +1054,8 @@ public class MapEditor : MonoBehaviour
         
         var triangle = icoSphere.triangleDataList[triangleId];
         
-        // Create the building using BuildingManager
-        Building newBuilding = buildingManager.CreateBuilding(triangle, selectedBuildingType, selectedBuildingLevel);
+        // Create building using BuildingManager
+        Building newBuilding = buildingManager.CreateBuilding(triangle, selectedBuildingType, selectedBuildingCountry, selectedBuildingLevel);
         
         if (newBuilding != null)
         {
@@ -1327,7 +1373,7 @@ public class MapEditor : MonoBehaviour
                                     var buildingManager = UnityEngine.Object.FindFirstObjectByType<BuildingManager>();
                                     if (buildingManager != null)
                                     {
-                                        Building newBuilding = buildingManager.CreateBuilding(triangle, originalBuildingType, 1); // Use level 1 as default
+                                        Building newBuilding = buildingManager.CreateBuilding(triangle, originalBuildingType, null, 1); // Use level 1 as default, triangle's country
                                         if (newBuilding != null)
                                         {
                                             triangle.SetBuilding(newBuilding);
@@ -1694,11 +1740,15 @@ public class MapEditor : MonoBehaviour
         {
             // Reset level to minimum when selecting a new building type
             selectedBuildingLevel = buildingType.GetMinLevel();
+            // Reset country to triangle's country (default) when selecting a new building type
+            selectedBuildingCountry = null;
             UpdateStatus($"Selected building: {buildingType.GetEmoji()} {buildingType.GetDisplayName()} Level {selectedBuildingLevel}");
         }
         else
         {
-            UpdateStatus("Selected: None (Remove mode) - Click to remove buildings from triangles");
+            selectedBuildingLevel = 1;
+            selectedBuildingCountry = null;
+            UpdateStatus("No building type selected");
         }
     }
 
@@ -1804,7 +1854,7 @@ public class MapEditor : MonoBehaviour
             var buildingManager = UnityEngine.Object.FindFirstObjectByType<BuildingManager>();
             if (buildingManager != null)
             {
-                Building newBuilding = buildingManager.CreateBuilding(triangle, selectedBuildingType, selectedBuildingLevel);
+                Building newBuilding = buildingManager.CreateBuilding(triangle, selectedBuildingType, selectedBuildingCountry, selectedBuildingLevel);
                 if (newBuilding != null)
                 {
                     triangle.SetBuilding(newBuilding);

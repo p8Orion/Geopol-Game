@@ -384,7 +384,7 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
         // Crear preview de drag
         CreateDragPreview();
         
-        Debug.Log($"Started dragging resource {resource.type} from triangle {resource.origin?.id}");
+        //Debug.Log($"Started dragging resource {resource.type} from triangle {resource.origin?.id}");
     }
     
     public void OnDrag(PointerEventData eventData)
@@ -400,7 +400,7 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
         
         // Buscar un IResourceAcceptor bajo el mouse
         IResourceAcceptor acceptor = GetResourceAcceptorUnderMouse();
-        Debug.Log($"EndDrag: acceptor={acceptor}");
+        //Debug.Log($"EndDrag: acceptor={acceptor}");
         
         if (acceptor != null && acceptor.CanAcceptResource(resource))
         {
@@ -421,7 +421,7 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
         // Limpiar drag
         CleanupDrag();
         
-        Debug.Log($"Ended dragging resource {resource.type}");
+        //Debug.Log($"Ended dragging resource {resource.type}");
     }
     
     public void OnDrop(PointerEventData eventData)

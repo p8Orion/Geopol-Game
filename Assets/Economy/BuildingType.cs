@@ -12,9 +12,16 @@ public class BuildingLevel
     public int level;
     public string displayName;
     
+    [Header("Visual")]
+    public GameObject prefab; // Prefab específico para este nivel
+    
     [Header("Resources")]
     public ResourceType[] acceptedResources = new ResourceType[0];
     public ResourceType[] producedResources = new ResourceType[0];
+    
+    // Referencia al BuildingType padre (no serializable para evitar referencias circulares)
+    [System.NonSerialized]
+    public BuildingType buildingType;
     
     public BuildingLevel(int level, string displayName = null)
     {
@@ -44,6 +51,45 @@ public class BuildingLevel
     public bool ProducesResource(ResourceType resourceType)
     {
         return producedResources.Contains(resourceType);
+    }
+    
+    /// <summary>
+    /// Obtiene el prefab para este nivel
+    /// </summary>
+    public GameObject GetPrefab()
+    {
+        // Si ya está asignado, usarlo
+        if (prefab != null)
+        {
+            return prefab;
+        }
+        
+        // Si no está asignado, buscarlo automáticamente en Resources/Buildings/
+        if (buildingType != null)
+        {
+            string prefabName = $"{buildingType.name}_Level{level}";
+            GameObject foundPrefab = Resources.Load<GameObject>($"Buildings/{prefabName}");
+            
+            if (foundPrefab != null)
+            {
+                prefab = foundPrefab; // Cachear para futuras consultas
+                return foundPrefab;
+            }
+            else
+            {
+                Debug.LogWarning($"BuildingLevel {buildingType.name} Level {level}: No prefab found at Resources/Buildings/{prefabName}");
+            }
+        }
+        
+        return null;
+    }
+    
+    /// <summary>
+    /// Establece la referencia al BuildingType padre
+    /// </summary>
+    public void SetBuildingType(BuildingType parentType)
+    {
+        buildingType = parentType;
     }
 }
 
@@ -121,7 +167,12 @@ public class BuildingType
     /// </summary>
     public BuildingLevel GetLevel(int level)
     {
-        return levels.FirstOrDefault(l => l.level == level);
+        var buildingLevel = levels.FirstOrDefault(l => l.level == level);
+        if (buildingLevel != null)
+        {
+            buildingLevel.SetBuildingType(this);
+        }
+        return buildingLevel;
     }
     
     /// <summary>
