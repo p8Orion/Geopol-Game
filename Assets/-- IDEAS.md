@@ -11,3 +11,5 @@
 # Falta solucinar el CanvasMundo repetido.
 
 # Ver de poner el BorderManager en la escena en vez de generarlo.
+
+# Aumentar el rango de fade de los recursos naturales (creo).
