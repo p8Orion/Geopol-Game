@@ -882,8 +882,8 @@ public class IcoSphere : MonoBehaviour
         for (int mapIndex = 0; mapIndex < 3; mapIndex++)
         {
             splatMaps[mapIndex] = new Texture2D(splatMapResolution, splatMapResolution, TextureFormat.RGBA32, false, true);
-            // Use Bilinear filtering to re-enable the GPU's automatic smoothing.
-            splatMaps[mapIndex].filterMode = FilterMode.Bilinear;
+            // Use Bilinear filtering when blur is enabled, Point filtering for sharp borders
+            splatMaps[mapIndex].filterMode = enableBlur ? FilterMode.Bilinear : FilterMode.Point;
             splatMaps[mapIndex].wrapMode = TextureWrapMode.Clamp;
         }
         
