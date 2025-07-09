@@ -9,7 +9,10 @@ public class FeatureRenderer : MonoBehaviour
     public float lineWidth = 5f;
     public float lineIntensity = 0.8f;
     public float segmentHeight = 50f; // Height above ground level
-    
+
+    [Header("Adjacency Settings")]
+    public bool useVertexAdjacency = true; // If true, uses vertex adjacency instead of edge adjacency
+
     [Header("Debug")]
     public bool showDebugInfo = false;
     
@@ -73,8 +76,14 @@ public class FeatureRenderer : MonoBehaviour
     {
         Debug.Log($"FeatureRenderer: Checking adjacent triangles for triangle {triangle.id} with feature {featureType}");
         
+        // Choose which adjacency list to use
+        var adjacentTriangles = useVertexAdjacency ? triangle.vertexAdjacentTriangles : triangle.adjacentTriangles;
+        string adjacencyType = useVertexAdjacency ? "vertex" : "edge";
+        
+        Debug.Log($"FeatureRenderer: Using {adjacencyType} adjacency for triangle {triangle.id}");
+        
         // Check each adjacent triangle
-        foreach (int adjacentId in triangle.adjacentTriangles)
+        foreach (int adjacentId in adjacentTriangles)
         {
             Debug.Log($"FeatureRenderer: Checking adjacent triangle {adjacentId}");
             
@@ -419,8 +428,11 @@ public class FeatureRenderer : MonoBehaviour
                     var featureType = triangle.featureTypes[i];
                     var level = triangle.featureLevels[i];
                     
+                    // Choose which adjacency list to use
+                    var adjacentTriangles = useVertexAdjacency ? triangle.vertexAdjacentTriangles : triangle.adjacentTriangles;
+                    
                     // Check adjacent triangles for the same feature
-                    foreach (int adjacentId in triangle.adjacentTriangles)
+                    foreach (int adjacentId in adjacentTriangles)
                     {
                         if (adjacentId >= 0 && adjacentId < icoSphere.triangleDataList.Count)
                         {

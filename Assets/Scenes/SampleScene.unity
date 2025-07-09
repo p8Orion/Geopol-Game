@@ -352,6 +352,7 @@ MonoBehaviour:
   lineWidth: 10
   lineIntensity: 0.8
   segmentHeight: 20
+  useVertexAdjacency: 1
   showDebugInfo: 0
 --- !u!4 &344347421
 Transform:
@@ -1612,6 +1613,7 @@ GameObject:
   - component: {fileID: 1519758109}
   - component: {fileID: 1519758113}
   - component: {fileID: 1519758114}
+  - component: {fileID: 1519758115}
   m_Layer: 0
   m_Name: IcoSphere
   m_TagString: Untagged
@@ -1819,6 +1821,24 @@ MonoBehaviour:
   saveVertexData: 1
   showSaveProgress: 1
   autoSaveOnGenerate: 0
+--- !u!114 &1519758115
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1519758108}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cf45f10dfd8e021488643d00b2a2e28d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  showSpheres: 1
+  sphereSize: 5
+  sphereColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  sphereMaterial: {fileID: 0}
+  updateInRealTime: 0
+  updateInterval: 1
 --- !u!43 &1971122145
 Mesh:
   m_ObjectHideFlags: 0

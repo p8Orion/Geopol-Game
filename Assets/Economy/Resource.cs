@@ -72,7 +72,7 @@ public class Resource : MonoBehaviour
             // Set initial visibility
             icon.SetVisible(shouldShowIcon && isActive);
             
-            Debug.Log($"ResourceIcon created successfully for {type} at position {GetCurrentPosition()}");
+            //Debug.Log($"ResourceIcon created successfully for {type} at position {GetCurrentPosition()}");
         }
 
     }
