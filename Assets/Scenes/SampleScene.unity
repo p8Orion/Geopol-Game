@@ -1326,6 +1326,12 @@ MonoBehaviour:
     prefab: {fileID: 0}
     levels: []
   selectedBuildingLevel: 1
+  selectedBuildingCountry:
+    name: New Country
+    color: {r: 1, g: 1, b: 1, a: 1}
+    index: -1
+    totalArea: 0
+    triangleCount: 0
   showBrushPreview: 1
   brushPreviewColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   useNewInputSystem: 1
@@ -1972,6 +1978,52 @@ Mesh:
     offset: 0
     size: 0
     path: 
+--- !u!1 &1998534968
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1998534970}
+  - component: {fileID: 1998534969}
+  m_Layer: 0
+  m_Name: RouteManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1998534969
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1998534968}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30fd97c34696a11439a1687db1d8947d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  activeRoutes: []
+  routePrefab: {fileID: 0}
+--- !u!4 &1998534970
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1998534968}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -751.7324, y: 2116.5557, z: -6800.2134}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -1987,3 +2039,4 @@ SceneRoots:
   - {fileID: 599960325}
   - {fileID: 1479925661}
   - {fileID: 187099971}
+  - {fileID: 1998534970}

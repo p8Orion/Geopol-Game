@@ -127,8 +127,40 @@ public class Building : MonoBehaviour, IResourceAcceptor
         // Establecer el destino del recurso usando el triángulo como IResourceDropPosition
         resource.SetDestination(this);
         
+        // Crear ruta de logística
+        CreateLogisticsRoute(resource);
+        
         Debug.Log($"Building {buildingName} accepted resource {resource.type}");
         return true;
+    }
+    
+    /// <summary>
+    /// Crea una ruta de logística cuando se acepta un resource
+    /// </summary>
+    /// <param name="resource">El resource que se está aceptando</param>
+    private void CreateLogisticsRoute(Resource resource)
+    {
+        if (resource == null || resource.origin == null)
+        {
+            Debug.LogWarning("No se puede crear ruta: resource o origin son null");
+            return;
+        }
+        
+        // Buscar el RouteManager en la escena
+        RouteManager routeManager = FindObjectOfType<RouteManager>();
+        if (routeManager == null)
+        {
+            Debug.LogWarning("No se encontró RouteManager en la escena");
+            return;
+        }
+        
+        // Crear la ruta usando el triángulo de origen del resource y este building como destino
+        Route newRoute = routeManager.CreateRoute(resource.origin, this, RouteType.Land, resource);
+        
+        if (newRoute != null)
+        {
+            Debug.Log($"Ruta de logística creada: {resource.origin.id} -> {buildingName}");
+        }
     }
     // Métodos adicionales del edificio
     public void SetTriangle(TriangleData newTriangle)

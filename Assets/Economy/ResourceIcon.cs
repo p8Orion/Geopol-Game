@@ -137,7 +137,7 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
         }
         else
         {
-            Debug.Log("ResourceIcon: GraphicRaycaster found, drag & drop should work.");
+           // Debug.Log("ResourceIcon: GraphicRaycaster found, drag & drop should work.");
         }
         
         // Ensure we have an Image component for drag & drop
@@ -147,7 +147,7 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
         }
         else
         {
-            Debug.Log("ResourceIcon: Image component found, drag & drop should work.");
+            //Debug.Log("ResourceIcon: Image component found, drag & drop should work.");
         }
     }
     
