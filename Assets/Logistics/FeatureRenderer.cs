@@ -8,6 +8,7 @@ public class FeatureRenderer : MonoBehaviour
     public Material featureLineMaterial;
     public float lineWidth = 5f;
     public float lineIntensity = 0.8f;
+    public float segmentHeight = 50f; // Height above ground level
     
     [Header("Debug")]
     public bool showDebugInfo = false;
@@ -23,6 +24,21 @@ public class FeatureRenderer : MonoBehaviour
         featureParent.localPosition = Vector3.zero;
         featureParent.localRotation = Quaternion.identity;
         featureParent.localScale = Vector3.one;
+        
+        // Create default material if none is assigned
+        if (featureLineMaterial == null)
+        {
+            CreateDefaultMaterial();
+        }
+    }
+    
+    void OnRenderObject()
+    {
+        // In editor mode, rebuild all segments to ensure they're visible
+        if (!Application.isPlaying)
+        {
+            RebuildAllSegmentsInEditor();
+        }
     }
     
     /// <summary>
@@ -30,11 +46,14 @@ public class FeatureRenderer : MonoBehaviour
     /// </summary>
     public void OnTriangleFeaturesChanged(TriangleData triangle)
     {
+        Debug.Log($"FeatureRenderer: Received notification for triangle {triangle.id} with {triangle.featureTypes.Count} features");
+        
         // Get all features on this triangle
         var features = new List<(FeatureType type, int level)>();
         for (int i = 0; i < triangle.featureTypes.Count; i++)
         {
             features.Add((triangle.featureTypes[i], triangle.featureLevels[i]));
+            Debug.Log($"FeatureRenderer: Triangle {triangle.id} has feature {triangle.featureTypes[i]} level {triangle.featureLevels[i]}");
         }
         
         // For each feature, check adjacent triangles and create/update segments
@@ -52,14 +71,20 @@ public class FeatureRenderer : MonoBehaviour
     /// </summary>
     private void UpdateFeatureSegments(TriangleData triangle, FeatureType featureType, int level)
     {
+        Debug.Log($"FeatureRenderer: Checking adjacent triangles for triangle {triangle.id} with feature {featureType}");
+        
         // Check each adjacent triangle
         foreach (int adjacentId in triangle.adjacentTriangles)
         {
-            if (adjacentId >= 0 && adjacentId < triangle.adjacentTriangles.Count)
+            Debug.Log($"FeatureRenderer: Checking adjacent triangle {adjacentId}");
+            
+            if (adjacentId >= 0)
             {
                 var adjacentTriangle = GetTriangleById(adjacentId);
                 if (adjacentTriangle != null)
                 {
+                    Debug.Log($"FeatureRenderer: Adjacent triangle {adjacentId} has feature {featureType}: {adjacentTriangle.HasFeature(featureType)}");
+                    
                     // Check if adjacent triangle has the same feature
                     if (adjacentTriangle.HasFeature(featureType))
                     {
@@ -67,6 +92,14 @@ public class FeatureRenderer : MonoBehaviour
                         CreateOrUpdateFeatureSegment(triangle, adjacentTriangle, featureType, level);
                     }
                 }
+                else
+                {
+                    Debug.LogWarning($"FeatureRenderer: Could not find adjacent triangle {adjacentId}");
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"FeatureRenderer: Invalid adjacent ID {adjacentId}");
             }
         }
     }
@@ -105,6 +138,12 @@ public class FeatureRenderer : MonoBehaviour
         // Add mesh components
         var meshFilter = segmentObject.AddComponent<MeshFilter>();
         var renderer = segmentObject.AddComponent<MeshRenderer>();
+        
+        // Ensure we have a material
+        if (featureLineMaterial == null)
+        {
+            CreateDefaultMaterial();
+        }
         
         // Create material instance
         var material = new Material(featureLineMaterial);
@@ -155,25 +194,38 @@ public class FeatureRenderer : MonoBehaviour
         Vector3 centerA = triA.GetCenter();
         Vector3 centerB = triB.GetCenter();
         
-        // Create a simple line mesh
+        // Calculate elevated positions for both centers
+        Vector3 radialDirectionA = centerA.normalized;
+        Vector3 radialDirectionB = centerB.normalized;
+        Vector3 elevatedCenterA = centerA + radialDirectionA * segmentHeight;
+        Vector3 elevatedCenterB = centerB + radialDirectionB * segmentHeight;
+        
+        // Position the segment object at the midpoint between the elevated centers
+        Vector3 elevatedMidpoint = (elevatedCenterA + elevatedCenterB) * 0.5f;
+        segmentObject.transform.position = elevatedMidpoint;
+        
+        // Create a simple line mesh (relative to the segment object position)
         var mesh = new Mesh();
         mesh.name = $"FeatureMesh_{featureType}_{triA.id}_to_{triB.id}";
         
         // Calculate line direction and perpendicular for thickness
-        Vector3 direction = (centerB - centerA).normalized;
-        Vector3 center = (centerA + centerB) * 0.5f;
-        Vector3 radial = (center - Vector3.zero).normalized;
+        Vector3 direction = (elevatedCenterB - elevatedCenterA).normalized;
+        Vector3 radial = elevatedMidpoint.normalized;
         Vector3 perpendicular = Vector3.Cross(direction, radial).normalized;
         
         float thickness = lineWidth * (level / 5f); // Scale thickness by level
         
-        // Create vertices for thick line
+        // Calculate relative positions from the segment object
+        Vector3 relativeElevatedCenterA = elevatedCenterA - elevatedMidpoint;
+        Vector3 relativeElevatedCenterB = elevatedCenterB - elevatedMidpoint;
+        
+        // Create vertices for thick line (relative to segment object)
         var vertices = new Vector3[]
         {
-            centerA + perpendicular * thickness,
-            centerA - perpendicular * thickness,
-            centerB + perpendicular * thickness,
-            centerB - perpendicular * thickness
+            relativeElevatedCenterA + perpendicular * thickness,
+            relativeElevatedCenterA - perpendicular * thickness,
+            relativeElevatedCenterB + perpendicular * thickness,
+            relativeElevatedCenterB - perpendicular * thickness
         };
         
         var colors = new Color[]
@@ -268,9 +320,9 @@ public class FeatureRenderer : MonoBehaviour
         // Ensure consistent ordering
         if (triAId > triBId)
         {
-            return $"{triBId}_{triAId}_{featureType}";
+            return $"{triBId}_{triAId}_{featureType.id}";
         }
-        return $"{triAId}_{triBId}_{featureType}";
+        return $"{triAId}_{triBId}_{featureType.id}";
     }
     
     /// <summary>
@@ -283,7 +335,11 @@ public class FeatureRenderer : MonoBehaviour
         {
             int triAId = int.Parse(parts[0]);
             int triBId = int.Parse(parts[1]);
-            FeatureType featureType = (FeatureType)System.Enum.Parse(typeof(FeatureType), parts[2]);
+            
+            // Parse feature type by ID
+            int featureId = int.Parse(parts[2]);
+            FeatureType featureType = FeatureType.AllTypes.FirstOrDefault(ft => ft.id == featureId) ?? FeatureType.None;
+            
             return (triAId, triBId, featureType);
         }
         return (-1, -1, FeatureType.None);
@@ -294,22 +350,7 @@ public class FeatureRenderer : MonoBehaviour
     /// </summary>
     private Color GetFeatureColor(FeatureType featureType)
     {
-        switch (featureType)
-        {
-            case FeatureType.Road:
-                return Color.gray;
-            case FeatureType.Pipeline:
-                return Color.cyan;
-            case FeatureType.Canal:
-                return Color.blue;
-            case FeatureType.Bridge:
-                return Color.brown;
-            case FeatureType.Tunnel:
-                return Color.black;
-            case FeatureType.None:
-            default:
-                return Color.white;
-        }
+        return featureType?.color ?? Color.white;
     }
     
     /// <summary>
@@ -356,6 +397,82 @@ public class FeatureRenderer : MonoBehaviour
             {
                 OnTriangleFeaturesChanged(triangle);
             }
+        }
+    }
+    
+    /// <summary>
+    /// Rebuilds all feature segments in editor mode
+    /// </summary>
+    private void RebuildAllSegmentsInEditor()
+    {
+        // Only rebuild if we don't have segments already
+        if (featureSegments.Count > 0) return;
+        
+        var icoSphere = FindFirstObjectByType<IcoSphere>();
+        if (icoSphere != null && icoSphere.triangleDataList != null)
+        {
+            foreach (var triangle in icoSphere.triangleDataList)
+            {
+                // Get all features on this triangle
+                for (int i = 0; i < triangle.featureTypes.Count; i++)
+                {
+                    var featureType = triangle.featureTypes[i];
+                    var level = triangle.featureLevels[i];
+                    
+                    // Check adjacent triangles for the same feature
+                    foreach (int adjacentId in triangle.adjacentTriangles)
+                    {
+                        if (adjacentId >= 0 && adjacentId < icoSphere.triangleDataList.Count)
+                        {
+                            var adjacentTriangle = icoSphere.triangleDataList[adjacentId];
+                            
+                            // Check if adjacent triangle has the same feature
+                            if (adjacentTriangle.HasFeature(featureType))
+                            {
+                                // Create or update the segment between these triangles
+                                CreateOrUpdateFeatureSegment(triangle, adjacentTriangle, featureType, level);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Creates a default material for feature lines
+    /// </summary>
+    private void CreateDefaultMaterial()
+    {
+        // Try to find an existing line shader
+        Shader lineShader = Shader.Find("Custom/Line");
+        if (lineShader == null)
+        {
+            // Fallback to unlit shader
+            lineShader = Shader.Find("Unlit/Color");
+        }
+        
+        if (lineShader == null)
+        {
+            // Last resort: use the default unlit shader
+            lineShader = Shader.Find("Hidden/InternalErrorShader");
+        }
+        
+        if (lineShader != null)
+        {
+            featureLineMaterial = new Material(lineShader);
+            featureLineMaterial.name = "DefaultFeatureLineMaterial";
+            
+            // Set default properties
+            featureLineMaterial.SetFloat("_LineWidth", lineWidth);
+            featureLineMaterial.SetFloat("_LineIntensity", lineIntensity);
+            featureLineMaterial.SetColor("_FeatureColor", Color.white);
+            
+            Debug.Log("FeatureRenderer: Created default material for feature lines");
+        }
+        else
+        {
+            Debug.LogError("FeatureRenderer: Could not find any suitable shader for feature lines");
         }
     }
 } 

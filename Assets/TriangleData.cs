@@ -266,7 +266,12 @@ public class TriangleData
         var featureRenderer = UnityEngine.Object.FindFirstObjectByType<FeatureRenderer>();
         if (featureRenderer != null)
         {
+            Debug.Log($"TriangleData: Notifying FeatureRenderer about changes to triangle {id}");
             featureRenderer.OnTriangleFeaturesChanged(this);
+        }
+        else
+        {
+            Debug.LogWarning("TriangleData: FeatureRenderer not found!");
         }
     }
     

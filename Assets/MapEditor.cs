@@ -208,6 +208,8 @@ public class MapEditor : MonoBehaviour
             }
         }
         
+        // Feature segments are handled by FeatureRenderer component
+        
         // Resource icons are now handled by ResourceIconRenderer component
     }
     
@@ -282,6 +284,8 @@ public class MapEditor : MonoBehaviour
         }
         lineMaterial = new Material(lineShader);
     }
+    
+
 
     // --- UI Drawing ---
 
@@ -682,12 +686,13 @@ public class MapEditor : MonoBehaviour
             GUILayout.Label("Available Feature Types:");
             
             // Get all feature types (excluding None)
-            FeatureType[] featureTypes = (FeatureType[])System.Enum.GetValues(typeof(FeatureType));
+            FeatureType[] featureTypes = FeatureType.AllTypes;
             
             int buttonWidth = 120;
             int buttonHeight = 40;
             int buttonsPerRow = 2;
             
+            int buttonCount = 0;
             for (int i = 0; i < featureTypes.Length; i++)
             {
                 var featureType = featureTypes[i];
@@ -695,19 +700,20 @@ public class MapEditor : MonoBehaviour
                 // Skip None type in the button list
                 if (featureType == FeatureType.None) continue;
                 
-                if (i % buttonsPerRow == 0)
+                if (buttonCount % buttonsPerRow == 0)
                 {
-                    if (i > 0) GUILayout.EndHorizontal();
+                    if (buttonCount > 0) GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
                 }
                 
                 GUI.backgroundColor = (featureType == selectedFeatureType) ? Color.green : Color.white;
-                if (GUILayout.Button($"{featureType}", GUILayout.Width(buttonWidth), GUILayout.Height(buttonHeight)))
+                if (GUILayout.Button($"{featureType.name}", GUILayout.Width(buttonWidth), GUILayout.Height(buttonHeight)))
                 {
                     SelectFeatureType(featureType);
                 }
+                buttonCount++;
             }
-            GUILayout.EndHorizontal();
+            if (buttonCount > 0) GUILayout.EndHorizontal();
             
             // Feature level selection
             if (selectedFeatureType != FeatureType.None)
@@ -848,6 +854,11 @@ public class MapEditor : MonoBehaviour
             // For buildings mode, keep the current preview mode
             UpdateStatus("Switched to Buildings editing mode.");
         }
+        else if (newMode == EditorMode.Features)
+        {
+            // For features mode, keep the current preview mode
+            UpdateStatus("Switched to Features editing mode.");
+        }
         else
         {
             // For terrain mode, use simple preview material
@@ -933,9 +944,11 @@ public class MapEditor : MonoBehaviour
 
         bool decreaseBrush = useNewInputSystem ? (keyboard != null && keyboard.leftBracketKey.wasPressedThisFrame) : Input.GetKeyDown(KeyCode.LeftBracket);
         bool increaseBrush = useNewInputSystem ? (keyboard != null && keyboard.rightBracketKey.wasPressedThisFrame) : Input.GetKeyDown(KeyCode.RightBracket);
+        bool deletePressed = useNewInputSystem ? (keyboard != null && keyboard.deleteKey.wasPressedThisFrame) : Input.GetKeyDown(KeyCode.Delete);
 
         if (decreaseBrush) DecreaseBrushSize();
         if (increaseBrush) IncreaseBrushSize();
+        if (deletePressed) DeleteSelectedType();
         
         for (int i = 0; i < digitKeys.Length; i++)
         {
@@ -1001,6 +1014,11 @@ public class MapEditor : MonoBehaviour
         {
             // For buildings mode, keep the current material and preview mode
             UpdateStatus("Switched to Buildings preview mode.");
+        }
+        else if (currentMode == EditorMode.Features)
+        {
+            // For features mode, keep the current material and preview mode
+            UpdateStatus("Switched to Features preview mode.");
         }
         else
         {
@@ -1190,6 +1208,88 @@ public class MapEditor : MonoBehaviour
         triangle.AddFeature(selectedFeatureType, selectedFeatureLevel);
         
         UpdateStatus($"Added {selectedFeatureType} Level {selectedFeatureLevel} feature to triangle {triangleId}");
+    }
+    
+    /// <summary>
+    /// Deletes the selected type from the triangle under the cursor
+    /// </summary>
+    void DeleteSelectedType()
+    {
+        Vector3 paintPosition = GetPaintPosition();
+        if (paintPosition == Vector3.zero)
+        {
+            UpdateStatus("No valid triangle selected for deletion.");
+            return;
+        }
+        
+        // Get the triangle data
+        int triangleId = idPicker.GetSelectedTriangleID();
+        if (triangleId == -1 || triangleId >= icoSphere.triangleDataList.Count)
+        {
+            UpdateStatus("Invalid triangle ID for deletion.");
+            return;
+        }
+        
+        var triangle = icoSphere.triangleDataList[triangleId];
+        
+        switch (currentMode)
+        {
+            case EditorMode.Terrain:
+                triangle.terrainType = 0; // Reset to default terrain
+                UpdateStatus($"Reset terrain type of triangle {triangleId} to default");
+                break;
+                
+            case EditorMode.Country:
+                triangle.RemoveFromCountry();
+                UpdateStatus($"Removed country assignment from triangle {triangleId}");
+                break;
+                
+            case EditorMode.Resources:
+                triangle.SetNaturalResource(ResourceType.None);
+                UpdateStatus($"Removed natural resource from triangle {triangleId}");
+                break;
+                
+            case EditorMode.Buildings:
+                if (triangle.building != null)
+                {
+                    var buildingManager = UnityEngine.Object.FindFirstObjectByType<BuildingManager>();
+                    if (buildingManager != null)
+                    {
+                        buildingManager.DestroyBuilding(triangle.building);
+                    }
+                    triangle.RemoveBuilding();
+                    UpdateStatus($"Removed building from triangle {triangleId}");
+                }
+                else
+                {
+                    UpdateStatus($"Triangle {triangleId} has no building to remove");
+                }
+                break;
+                
+            case EditorMode.Features:
+                // Remove all features of the selected type
+                if (selectedFeatureType != FeatureType.None)
+                {
+                    triangle.RemoveFeature(selectedFeatureType);
+                    UpdateStatus($"Removed {selectedFeatureType} feature from triangle {triangleId}");
+                }
+                else
+                {
+                    // Remove all features if no specific type is selected
+                    for (int i = triangle.featureTypes.Count - 1; i >= 0; i--)
+                    {
+                        triangle.RemoveFeature(triangle.featureTypes[i]);
+                    }
+                    UpdateStatus($"Removed all features from triangle {triangleId}");
+                }
+                break;
+                
+            default:
+                UpdateStatus($"Delete not implemented for {currentMode} mode");
+                break;
+        }
+        
+        isDirty = true;
     }
     
     Vector3 GetPaintPosition()
@@ -2076,7 +2176,7 @@ public class MapEditor : MonoBehaviour
                 int hash = 0;
                 for (int i = 0; i < triangle.featureTypes.Count; i++)
                 {
-                    hash += (int)triangle.featureTypes[i] * (i + 1) + triangle.featureLevels[i];
+                    hash += triangle.featureTypes[i].id * (i + 1) + triangle.featureLevels[i];
                 }
                 originalFeatureData = -hash;
             }
@@ -2108,22 +2208,7 @@ public class MapEditor : MonoBehaviour
     /// </summary>
     private Color GetFeaturePreviewColor(FeatureType featureType)
     {
-        // Simple color mapping for features
-        switch (featureType)
-        {
-            case FeatureType.Road:
-                return Color.gray;
-            case FeatureType.Pipeline:
-                return Color.cyan;
-            case FeatureType.Canal:
-                return Color.blue;
-            case FeatureType.Bridge:
-                return Color.brown;
-            case FeatureType.Tunnel:
-                return Color.black;
-            default:
-                return Color.white;
-        }
+        return featureType?.color ?? Color.white;
     }
 
     void DrawCountryPreviewOverlay() 

@@ -247,7 +247,7 @@ public class TriangleDataSaver : MonoBehaviour
                 var triangleFeatureLevels = new List<int>();
                 for (int j = 0; j < tri.featureTypes.Count; j++)
                 {
-                    triangleFeatureTypes.Add((int)tri.featureTypes[j]);
+                    triangleFeatureTypes.Add(tri.featureTypes[j].id);
                     triangleFeatureLevels.Add(tri.featureLevels[j]);
                 }
                 dataToSave.featureTypes.Add(triangleFeatureTypes);
@@ -506,7 +506,9 @@ public class TriangleDataSaver : MonoBehaviour
                     var triangleFeatureLevels = saveData.featureLevels[i];
                     for (int j = 0; j < triangleFeatureTypes.Count && j < triangleFeatureLevels.Count; j++)
                     {
-                        tri.AddFeature((FeatureType)triangleFeatureTypes[j], triangleFeatureLevels[j]);
+                        // Find FeatureType by ID
+                        FeatureType featureType = FeatureType.AllTypes.FirstOrDefault(ft => ft.id == triangleFeatureTypes[j]) ?? FeatureType.None;
+                        tri.AddFeature(featureType, triangleFeatureLevels[j]);
                     }
                 }
 
