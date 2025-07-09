@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 /// <summary>
 /// Representa un edificio que puede recibir recursos mediante drag & drop
@@ -7,7 +8,11 @@ public class Building : MonoBehaviour, IResourceAcceptor
 {
     [Header("Building Properties")]
     public string buildingName = "Building";
-    public BuildingType buildingType = BuildingType.Factory;
+    public BuildingType buildingType;
+    public int buildingLevel = 1;
+    
+    [Header("Unique ID")]
+    [SerializeField] private string uniqueId;
     
     [Header("Location")]
     public TriangleData triangle;
@@ -25,6 +30,29 @@ public class Building : MonoBehaviour, IResourceAcceptor
     
     private void Start()
     {
+        // Generar ID único si no existe
+        if (string.IsNullOrEmpty(uniqueId))
+        {
+            GenerateUniqueId();
+        }
+        
+        // Inicializar tipo de edificio por defecto si no está asignado
+        if (buildingType == null)
+        {
+            buildingType = BuildingType.Factory;
+        }
+        
+        // Validar que el nivel sea válido
+        if (buildingType != null)
+        {
+            var level = buildingType.GetLevel(buildingLevel);
+            if (level == null)
+            {
+                Debug.LogWarning($"Building {buildingName}: Invalid level {buildingLevel}, using level 1");
+                buildingLevel = 1;
+            }
+        }
+        
         // Validar que tenga un triángulo asignado
         if (triangle == null)
         {
@@ -44,24 +72,41 @@ public class Building : MonoBehaviour, IResourceAcceptor
         }
     }
     
+    /// <summary>
+    /// Genera un ID único para este building usando "B" + GUID
+    /// </summary>
+    private void GenerateUniqueId()
+    {
+        uniqueId = "B" + Guid.NewGuid().ToString("N"); // N para quitar los guiones
+    }
+    
+    /// <summary>
+    /// Implementación de la propiedad id de IResourceAcceptor
+    /// </summary>
+    public int id
+    {
+        get
+        {
+            // Convertir el string ID a un hash numérico para compatibilidad
+            return uniqueId.GetHashCode();
+        }
+    }
+    
     // Implementación de IResourceAcceptor
     public bool CanAcceptResource(Resource resource)
     {
-        if (resource == null || !resource.isActive)
+        if (resource == null || !resource.isActive || buildingType == null)
             return false;
             
-        // Si acepta todos los recursos, permitir
-        if (acceptAllResources)
+        var level = buildingType.GetLevel(buildingLevel);
+        if (level == null) return false;
+        
+        // Si no tiene recursos aceptados, acepta todos (como warehouse)
+        if (level.acceptedResources.Length == 0)
             return true;
             
-        // Verificar si el tipo de recurso está en la lista de aceptados
-        foreach (ResourceType acceptedType in acceptedResourceTypes)
-        {
-            if (resource.type == acceptedType)
-                return true;
-        }
-        
-        return false;
+        // Verificar si el tipo de recurso está en la lista de recursos aceptados
+        return level.AcceptsResource(resource.type);
     }
     
     public bool AcceptResource(Resource resource)
@@ -70,17 +115,11 @@ public class Building : MonoBehaviour, IResourceAcceptor
             return false;
             
         // Establecer el destino del recurso usando el triángulo como IResourceDropPosition
-        resource.SetDestination(triangle);
+        resource.SetDestination(this);
         
         Debug.Log($"Building {buildingName} accepted resource {resource.type}");
         return true;
     }
-    
-    public IResourceDropPosition GetDropPosition()
-    {
-        return triangle;
-    }
-    
     // Métodos adicionales del edificio
     public void SetTriangle(TriangleData newTriangle)
     {
@@ -97,15 +136,48 @@ public class Building : MonoBehaviour, IResourceAcceptor
         }
     }
     
-    public void SetAcceptedResourceTypes(ResourceType[] types)
+    /// <summary>
+    /// Obtiene el nivel actual del edificio
+    /// </summary>
+    public BuildingLevel GetCurrentLevel()
     {
-        acceptedResourceTypes = types;
-        acceptAllResources = false;
+        return buildingType?.GetLevel(buildingLevel);
     }
     
-    public void SetAcceptAllResources(bool acceptAll)
+    /// <summary>
+    /// Verifica si el edificio acepta un recurso específico
+    /// </summary>
+    public bool AcceptsResource(ResourceType resourceType)
     {
-        acceptAllResources = acceptAll;
+        var level = GetCurrentLevel();
+        return level?.AcceptsResource(resourceType) ?? false;
+    }
+    
+    /// <summary>
+    /// Verifica si el edificio produce un recurso específico
+    /// </summary>
+    public bool ProducesResource(ResourceType resourceType)
+    {
+        var level = GetCurrentLevel();
+        return level?.ProducesResource(resourceType) ?? false;
+    }
+    
+    /// <summary>
+    /// Obtiene los recursos que acepta el edificio
+    /// </summary>
+    public ResourceType[] GetAcceptedResources()
+    {
+        var level = GetCurrentLevel();
+        return level?.acceptedResources ?? new ResourceType[0];
+    }
+    
+    /// <summary>
+    /// Obtiene los recursos que produce el edificio
+    /// </summary>
+    public ResourceType[] GetProducedResources()
+    {
+        var level = GetCurrentLevel();
+        return level?.producedResources ?? new ResourceType[0];
     }
     
     /// <summary>
@@ -140,19 +212,13 @@ public class Building : MonoBehaviour, IResourceAcceptor
     {
         return country != null;
     }
+
+    public TriangleData GetTriangle()
+    {
+        return triangle;
+    }
 }
 
-/// <summary>
-/// Tipos de edificios disponibles
-/// </summary>
-public enum BuildingType
-{
-    Factory,
-    Warehouse,
-    Market,
-    Port,
-    Mine,
-    Farm,
-    PowerPlant,
-    ResearchCenter
-} 
+ 
+
+

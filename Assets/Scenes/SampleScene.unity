@@ -1575,7 +1575,7 @@ MonoBehaviour:
     previewColor: {r: 0, g: 0.1187284, b: 1, a: 1}
     id: 10
     terrainType: 0
-  splatMapResolution: 512
+  splatMapResolution: 1024
   borderNoiseStrength: 0.4
   borderNoiseScale: 0.25
   borderDepth: 5

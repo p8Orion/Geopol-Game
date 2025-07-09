@@ -248,7 +248,7 @@ public class TriangleDataSaver : MonoBehaviour
                         {
                             type = resource.type,
                             originTriangleId = resource.origin.id,
-                            destinationTriangleId = resource.destination != null ? resource.destination.id : resource.origin.id,
+                            destinationId = resource.destination != null ? resource.destination.id : -1,
                             isActive = resource.isActive,
                             isMoving = resource.isMoving,
                             shouldShowIcon = resource.shouldShowIcon
@@ -538,24 +538,30 @@ public class TriangleDataSaver : MonoBehaviour
         int restoredCount = 0;
         foreach (var resourceData in savedResources)
         {
-            // Find origin and destination triangles
+            // Find origin triangle
             TriangleData originTriangle = null;
-            TriangleData destinationTriangle = null;
             
             if (resourceData.originTriangleId >= 0 && resourceData.originTriangleId < triangles.Count)
             {
                 originTriangle = triangles[resourceData.originTriangleId];
             }
             
-            if (resourceData.destinationTriangleId >= 0 && resourceData.destinationTriangleId < triangles.Count)
+            // Find destination acceptor by ID
+            IResourceAcceptor destinationAcceptor = null;
+            if (resourceData.destinationId >= 0)
             {
-                destinationTriangle = triangles[resourceData.destinationTriangleId];
+                // TODO: RESTORE ACCEPTOR - We need to implement acceptor saving/loading system
+                // Most acceptors will be buildings, so we should save them in this same file
+                // and load them before restoring resources
+                // For now, we'll look for buildings or other acceptors that might have this ID
+                var allAcceptors = UnityEngine.Object.FindObjectsOfType<MonoBehaviour>().OfType<IResourceAcceptor>();
+                destinationAcceptor = allAcceptors.FirstOrDefault(acceptor => acceptor.id == resourceData.destinationId);
             }
             
             if (originTriangle != null)
             {
                 // Create the resource
-                var resource = resourceManager.CreateResource(resourceData.type, originTriangle, destinationTriangle);
+                var resource = resourceManager.CreateResource(resourceData.type, originTriangle, destinationAcceptor);
                 
                 if (resource != null)
                 {

@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 [System.Serializable]
-public class TriangleData : IResourceDropPosition
+public class TriangleData
 {
     public int id;
     public Vector3 a, b, c;
@@ -260,21 +260,6 @@ public class TriangleData : IResourceDropPosition
                $"Vertex Adjacent: {string.Join(", ", vertexAdjacentTriangles)}";
     }
     
-    // Implementación de IResourceDropPosition
-    public Vector3 GetWorldPosition()
-    {
-        return GetCenter();
-    }
-    
-    public string GetDropPositionName()
-    {
-        return $"Triangle_{id}";
-    }
-    
-    
-    public bool IsAvailable()
-    {
-        return true;
-    }
+
 
 }

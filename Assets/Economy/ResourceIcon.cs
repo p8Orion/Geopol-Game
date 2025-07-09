@@ -406,8 +406,7 @@ public class ResourceIcon : WorldUIElement, IBeginDragHandler, IDragHandler, IEn
         {
             if (acceptor.AcceptResource(resource))
             {
-                IResourceDropPosition dropPosition = acceptor.GetDropPosition();
-                Debug.Log($"Successfully dropped resource {resource.type} on acceptor at {dropPosition?.GetDropPositionName()}");
+                Debug.Log($"Accepted resource {resource.type} on acceptor");
             }
             else
             {

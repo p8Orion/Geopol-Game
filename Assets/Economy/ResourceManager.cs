@@ -66,7 +66,7 @@ public class ResourceManager : MonoBehaviour
     }
     
     
-    public Resource CreateResource(ResourceType type, TriangleData originTriangle, TriangleData destinationTriangle = null, Country owner = null)
+    public Resource CreateResource(ResourceType type, TriangleData originTriangle, IResourceAcceptor destinationAcceptor = null, Country owner = null)
     {
         // Ensure worldCanvas is available
         if (worldCanvas == null)
@@ -95,7 +95,7 @@ public class ResourceManager : MonoBehaviour
         resource.type = type;
         resource.owner = owner ?? originTriangle.country;
         resource.origin = originTriangle;
-        resource.destination = destinationTriangle ?? originTriangle;
+        resource.destination = destinationAcceptor;
         
 
         
@@ -107,16 +107,28 @@ public class ResourceManager : MonoBehaviour
             originTriangle.resourcesOriginatingFrom.Add(resource);
         }
         
-        if (destinationTriangle != null && destinationTriangle != originTriangle)
+        // Handle destination tracking - if destination is a TriangleData, add to its lists
+        if (destinationAcceptor is TriangleData destinationTriangle)
         {
-            if (!destinationTriangle.resourcesDestinedTo.Contains(resource))
+            if (destinationTriangle != originTriangle)
             {
-                destinationTriangle.resourcesDestinedTo.Add(resource);
+                if (!destinationTriangle.resourcesDestinedTo.Contains(resource))
+                {
+                    destinationTriangle.resourcesDestinedTo.Add(resource);
+                }
+            }
+            else
+            {
+                // If same as origin, add to origin's destined list
+                if (!originTriangle.resourcesDestinedTo.Contains(resource))
+                {
+                    originTriangle.resourcesDestinedTo.Add(resource);
+                }
             }
         }
-        else
+        else if (destinationAcceptor == null)
         {
-            // If no destination or same as origin, add to origin's destined list
+            // If no destination, add to origin's destined list
             if (!originTriangle.resourcesDestinedTo.Contains(resource))
             {
                 originTriangle.resourcesDestinedTo.Add(resource);
@@ -143,9 +155,10 @@ public class ResourceManager : MonoBehaviour
                 resource.origin.resourcesDestinedTo.Remove(resource);
             }
             
-            if (resource.destination != null && resource.destination != resource.origin)
+            // Handle destination removal - if destination is a TriangleData, remove from its lists
+            if (resource.destination is TriangleData destinationTriangle && destinationTriangle != resource.origin)
             {
-                resource.destination.resourcesDestinedTo.Remove(resource);
+                destinationTriangle.resourcesDestinedTo.Remove(resource);
             }
         }
         
@@ -287,10 +300,11 @@ public class ResourceManager : MonoBehaviour
                 resource.origin.resourcesOriginatingFrom.Clear();
                 resource.origin.resourcesDestinedTo.Clear();
                 
-                if (resource.destination != null)
+                // Clear destination lists if it's a TriangleData
+                if (resource.destination is TriangleData destinationTriangle)
                 {
-                    resource.destination.resourcesOriginatingFrom.Clear();
-                    resource.destination.resourcesDestinedTo.Clear();
+                    destinationTriangle.resourcesOriginatingFrom.Clear();
+                    destinationTriangle.resourcesDestinedTo.Clear();
                 }
             }
         }
@@ -307,17 +321,17 @@ public class ResourceManager : MonoBehaviour
                     resource.origin.resourcesOriginatingFrom.Add(resource);
                 }
                 
-                // Add to destination's destined list
-                if (resource.destination != null)
+                // Add to destination's destined list if it's a TriangleData
+                if (resource.destination is TriangleData destinationTriangle)
                 {
-                    if (!resource.destination.resourcesDestinedTo.Contains(resource))
+                    if (!destinationTriangle.resourcesDestinedTo.Contains(resource))
                     {
-                        resource.destination.resourcesDestinedTo.Add(resource);
+                        destinationTriangle.resourcesDestinedTo.Add(resource);
                     }
                 }
                 else
                 {
-                    // If no destination, add to origin's destined list
+                    // If no destination or destination is not a TriangleData, add to origin's destined list
                     if (!resource.origin.resourcesDestinedTo.Contains(resource))
                     {
                         resource.origin.resourcesDestinedTo.Add(resource);

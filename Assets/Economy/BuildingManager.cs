@@ -6,23 +6,21 @@ using System.Collections.Generic;
 /// </summary>
 public class BuildingManager : MonoBehaviour
 {
-    [Header("Building Prefabs")]
-    public GameObject factoryPrefab;
-    public GameObject warehousePrefab;
-    public GameObject marketPrefab;
-    
     [Header("Building Settings")]
     public float buildingHeight = 1f;
     
     private List<Building> activeBuildings = new List<Building>();
+    
+
     
     /// <summary>
     /// Crea un edificio en el triángulo especificado
     /// </summary>
     /// <param name="triangle">El triángulo donde crear el edificio</param>
     /// <param name="buildingType">El tipo de edificio a crear</param>
+    /// <param name="level">El nivel del edificio (por defecto 1)</param>
     /// <returns>El edificio creado, o null si falló</returns>
-    public Building CreateBuilding(TriangleData triangle, BuildingType buildingType)
+    public Building CreateBuilding(TriangleData triangle, BuildingType buildingType, int level = 1)
     {
         if (triangle == null)
         {
@@ -30,17 +28,32 @@ public class BuildingManager : MonoBehaviour
             return null;
         }
         
-        // Seleccionar el prefab según el tipo
-        GameObject prefab = GetPrefabForBuildingType(buildingType);
+        // Verificar que el tipo de edificio sea válido
+        if (buildingType == null)
+        {
+            Debug.LogError("Cannot create building: buildingType is null");
+            return null;
+        }
+        
+        // Verificar que el nivel sea válido
+        var buildingLevel = buildingType.GetLevel(level);
+        if (buildingLevel == null)
+        {
+            Debug.LogError($"Invalid level {level} for building type: {buildingType.name}");
+            return null;
+        }
+        
+        // Obtener el prefab del tipo de edificio
+        GameObject prefab = buildingType.prefab;
         if (prefab == null)
         {
-            Debug.LogError($"No prefab found for building type: {buildingType}");
+            Debug.LogError($"No prefab found for building type: {buildingType.name}");
             return null;
         }
         
         // Crear el edificio
         Vector3 position = triangle.GetCenter();
-        position.y += buildingHeight; // Elevar un poco el edificio
+        position.y += buildingHeight; // Usar la altura por defecto del BuildingManager
         
         GameObject buildingGO = Instantiate(prefab, position, Quaternion.identity, transform);
         Building building = buildingGO.GetComponent<Building>();
@@ -55,72 +68,17 @@ public class BuildingManager : MonoBehaviour
         // Configurar el edificio
         building.SetTriangle(triangle);
         building.buildingType = buildingType;
+        building.buildingLevel = level;
         
-        // Crear nombre con país y tipo
+        // Crear nombre con país, tipo y nivel
         string countryName = triangle.country != null ? triangle.country.name : "Unclaimed";
-        building.buildingName = $"{countryName}_{buildingType}_{triangle.id}";
-        
-        // Configurar qué recursos acepta según el tipo
-        ConfigureBuildingResourceAcceptance(building, buildingType);
+        building.buildingName = $"{countryName}_{buildingType.name}_L{level}_{triangle.id}";
         
         // Agregar a la lista de edificios activos
         activeBuildings.Add(building);
         
-        Debug.Log($"Created {buildingType} building on triangle {triangle.id}");
+        Debug.Log($"Created {buildingType.name} Level {level} building on triangle {triangle.id}");
         return building;
-    }
-    
-    private GameObject GetPrefabForBuildingType(BuildingType buildingType)
-    {
-        switch (buildingType)
-        {
-            case BuildingType.Factory:
-                return factoryPrefab;
-            case BuildingType.Warehouse:
-                return warehousePrefab;
-            case BuildingType.Market:
-                return marketPrefab;
-            default:
-                Debug.LogWarning($"No prefab configured for building type: {buildingType}");
-                return factoryPrefab; // Fallback
-        }
-    }
-    
-    private void ConfigureBuildingResourceAcceptance(Building building, BuildingType buildingType)
-    {
-        switch (buildingType)
-        {
-            case BuildingType.Factory:
-                // Las fábricas aceptan materias primas
-                building.SetAcceptedResourceTypes(new ResourceType[] 
-                { 
-                    ResourceType.Iron, 
-                    ResourceType.Gold, 
-                    ResourceType.Uranium,
-                    ResourceType.RareEarths 
-                });
-                break;
-                
-            case BuildingType.Warehouse:
-                // Los almacenes aceptan todos los recursos
-                building.SetAcceptAllResources(true);
-                break;
-                
-            case BuildingType.Market:
-                // Los mercados aceptan bienes de consumo
-                building.SetAcceptedResourceTypes(new ResourceType[] 
-                { 
-                    ResourceType.ConsumerGoods,
-                    ResourceType.IndustrialGoods,
-                    ResourceType.HighTech
-                });
-                break;
-                
-            default:
-                // Por defecto, aceptar todos los recursos
-                building.SetAcceptAllResources(true);
-                break;
-        }
     }
     
     /// <summary>
@@ -145,6 +103,78 @@ public class BuildingManager : MonoBehaviour
             }
         }
         return result;
+    }
+    
+    /// <summary>
+    /// Obtiene todos los tipos de edificios disponibles
+    /// </summary>
+    public BuildingType[] GetAvailableBuildingTypes()
+    {
+        return BuildingType.GetAllBuildingTypes().ToArray();
+    }
+    
+    /// <summary>
+    /// Obtiene un tipo de edificio por nombre
+    /// </summary>
+    public BuildingType GetBuildingTypeByName(string name)
+    {
+        return BuildingType.GetByName(name);
+    }
+    
+    /// <summary>
+    /// Obtiene un tipo de edificio por índice
+    /// </summary>
+    public BuildingType GetBuildingTypeByIndex(int index)
+    {
+        return BuildingType.GetByIndex(index);
+    }
+    
+    /// <summary>
+    /// Obtiene edificios de un tipo y nivel específicos
+    /// </summary>
+    public List<Building> GetBuildingsByTypeAndLevel(BuildingType buildingType, int level)
+    {
+        List<Building> result = new List<Building>();
+        foreach (Building building in activeBuildings)
+        {
+            if (building.buildingType == buildingType && building.buildingLevel == level)
+            {
+                result.Add(building);
+            }
+        }
+        return result;
+    }
+    
+    /// <summary>
+    /// Obtiene edificios de un nivel específico
+    /// </summary>
+    public List<Building> GetBuildingsByLevel(int level)
+    {
+        List<Building> result = new List<Building>();
+        foreach (Building building in activeBuildings)
+        {
+            if (building.buildingLevel == level)
+            {
+                result.Add(building);
+            }
+        }
+        return result;
+    }
+    
+    /// <summary>
+    /// Obtiene el nivel máximo de un tipo de edificio
+    /// </summary>
+    public int GetMaxLevel(BuildingType buildingType)
+    {
+        return buildingType?.GetMaxLevel() ?? 0;
+    }
+    
+    /// <summary>
+    /// Obtiene el nivel mínimo de un tipo de edificio
+    /// </summary>
+    public int GetMinLevel(BuildingType buildingType)
+    {
+        return buildingType?.GetMinLevel() ?? 0;
     }
     
     /// <summary>

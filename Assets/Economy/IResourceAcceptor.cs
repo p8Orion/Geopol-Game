@@ -6,6 +6,11 @@ using UnityEngine;
 public interface IResourceAcceptor
 {
     /// <summary>
+    /// ID único del acceptor
+    /// </summary>
+    int id { get; }
+    
+    /// <summary>
     /// Verifica si este objeto puede aceptar el recurso especificado
     /// </summary>
     /// <param name="resource">El recurso que se intenta droppear</param>
@@ -18,10 +23,8 @@ public interface IResourceAcceptor
     /// <param name="resource">El recurso que se está droppeando</param>
     /// <returns>True si el drop fue exitoso, false en caso contrario</returns>
     bool AcceptResource(Resource resource);
+
+    TriangleData GetTriangle(); // Puede ser null si es un acceptor "abstracto", no en el mapa.
+
     
-    /// <summary>
-    /// Obtiene el punto donde se debe colocar el recurso cuando se hace drop
-    /// </summary>
-    /// <returns>El punto donde colocar el recurso</returns>
-    IResourceDropPosition GetDropPosition();
 } 
